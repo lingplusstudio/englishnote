@@ -75,7 +75,7 @@ const app = initializeApp(firebaseConfig);
     <!-- 2. 直角座標矩陣檢視 (Matrix View) -->
     <main id="matrixView" class="hidden bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-x-auto">
       <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
-        <span>💡 <b>矩陣使用說明：</b> 點擊有標籤的格子查看細節，點擊空白格子可<b>直接新增片語與心智筆記</b>！</span>
+        <span>💡 <b>矩陣使用說明：</b> 藍色格為<b>已建立片語</b>；灰色短槓 <b>-</b> 代表未建立，但<b>點擊一樣可以編輯新增</b>！</span>
       </div>
       <div id="matrixTableContainer"></div>
     </main>
@@ -286,11 +286,11 @@ const app = initializeApp(firebaseConfig);
                 ✨ ${v.verb} ${prep}
               </td>`;
           } else {
-            // 空白格子也可以點擊編輯！
+            // 空白格子顯示淡灰色 - 號，點擊依然可編輯！
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
                   class="p-2 border border-slate-200 text-center text-slate-300 hover:bg-slate-100 hover:text-slate-500 cursor-pointer transition">
-                +
+                -
               </td>`;
           }
         });
@@ -384,7 +384,7 @@ const app = initializeApp(firebaseConfig);
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
       } catch (err) {
-        alert("儲存片語筆记失敗: " + err.message);
+        alert("儲存片語筆記失敗: " + err.message);
       }
     }
 
