@@ -74,14 +74,14 @@ const app = initializeApp(firebaseConfig);
 
     <!-- 2. 直角座標矩陣檢視 (Matrix View) -->
     <main id="matrixView" class="hidden bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-x-auto">
-      <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-2">
-        <span>💡 <b>矩陣使用說明：</b> 橫軸為 <b>動詞（力量）</b>，縱軸為 <b>介系詞（空間方向）</b>。點擊交會格子即可看心智合體畫面！</span>
+      <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
+        <span>💡 <b>矩陣使用說明：</b> 點擊有標籤的格子查看細節，點擊空白格子可<b>直接新增片語與心智筆記</b>！</span>
       </div>
       <div id="matrixTableContainer"></div>
     </main>
   </div>
 
-  <!-- Add/Edit Modal -->
+  <!-- Add/Edit Modal (動詞卡片) -->
   <div id="verbModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
       <h2 id="modalTitle" class="text-xl font-bold text-blue-600 mb-4">新增動詞心智卡片</h2>
@@ -122,13 +122,10 @@ const app = initializeApp(firebaseConfig);
     </div>
   </div>
 
-  <!-- Detail Popover Modal for Matrix -->
+  <!-- Detail Popover & Edit Modal for Matrix (座標心智與編輯) -->
   <div id="matrixDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full border border-slate-200 shadow-2xl">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div id="matrixDetailContent"></div>
-      <div class="flex justify-end pt-4 border-t border-slate-100 mt-4">
-        <button onclick="closeMatrixDetail()" class="bg-blue-600 text-white px-4 py-1.5 rounded font-bold text-sm">關閉</button>
-      </div>
     </div>
   </div>
 
@@ -265,9 +262,9 @@ const app = initializeApp(firebaseConfig);
       let html = `<table class="w-full border-collapse text-left text-xs">`;
       
       // Header Row (X 軸：動詞)
-      html += `<thead><tr><th class="p-2 border border-slate-200 bg-slate-100 text-slate-500 font-bold w-24 sticky left-0 z-10">介系詞 \\ 動詞</th>`;
+      html += `<thead><tr><th class="p-2 border border-slate-200 bg-slate-100 text-slate-500 font-bold w-28 sticky left-0 z-10">介系詞 \\ 動詞</th>`;
       sortedVerbs.forEach(v => {
-        html += `<th class="p-2 border border-slate-200 bg-blue-50 text-blue-700 font-black text-center text-sm min-w-[90px]">${escapeHtml(v.verb)}</th>`;
+        html += `<th class="p-2 border border-slate-200 bg-blue-50 text-blue-700 font-black text-center text-sm min-w-[95px]">${escapeHtml(v.verb)}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
@@ -278,7 +275,6 @@ const app = initializeApp(firebaseConfig);
         html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
 
         sortedVerbs.forEach(v => {
-          // 檢查該動詞的 collocations 或 examples 是否包含這個介系詞片語 (如 "TAKE OFF" 或 "OFF")
           const targetPhrase = `${v.verb} ${prep}`.toLowerCase();
           const hasMatch = (v.collocations && v.collocations.toLowerCase().includes(prep.toLowerCase())) ||
                            (v.examples && v.examples.toLowerCase().includes(targetPhrase));
@@ -286,11 +282,16 @@ const app = initializeApp(firebaseConfig);
           if (hasMatch) {
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
-                  class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 font-bold text-center cursor-pointer transition">
+                  class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/25 text-blue-700 font-bold text-center cursor-pointer transition">
                 ✨ ${v.verb} ${prep}
               </td>`;
           } else {
-            html += `<td class="p-2 border border-slate-200 text-center text-slate-300">-</td>`;
+            // 空白格子也可以點擊編輯！
+            html += `
+              <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
+                  class="p-2 border border-slate-200 text-center text-slate-300 hover:bg-slate-100 hover:text-slate-500 cursor-pointer transition">
+                +
+              </td>`;
           }
         });
         html += `</tr>`;
@@ -300,40 +301,91 @@ const app = initializeApp(firebaseConfig);
       container.innerHTML = html;
     }
 
-    // 點擊矩陣單元格看心智組合細節
+    // 點擊矩陣單元格：顯示與編輯
     function openMatrixDetail(verbId, prep) {
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
       const content = document.getElementById('matrixDetailContent');
+      const targetPhrase = `${item.verb} ${prep}`;
+
       content.innerHTML = `
         <div class="text-center mb-4 border-b pb-3">
-          <span class="text-xs uppercase font-bold text-slate-400">心智座標交會點</span>
-          <h3 class="text-3xl font-black text-blue-600 mt-1">${escapeHtml(item.verb)} + ${prep}</h3>
+          <span class="text-xs uppercase font-bold text-slate-400">座標心智點</span>
+          <h3 class="text-3xl font-black text-blue-600 mt-1">${escapeHtml(targetPhrase)}</h3>
         </div>
         
         <div class="space-y-3 text-sm">
-          <div class="bg-slate-50 p-3 rounded border border-slate-100">
-            <span class="font-bold text-blue-600">💥 力量來源 (${item.verb})：</span>
-            <p class="text-slate-700 mt-0.5">${escapeHtml(item.coreImage)}</p>
+          <div class="bg-blue-50 p-2.5 rounded border border-blue-100">
+            <span class="font-bold text-blue-600 text-xs">💥 動詞力量 (${item.verb})：</span>
+            <p class="text-slate-700 text-xs mt-0.5">${escapeHtml(item.coreImage)}</p>
           </div>
 
-          <div class="bg-amber-50 p-3 rounded border border-amber-100">
-            <span class="font-bold text-amber-800">🧭 空間方向 (${prep})：</span>
-            <p class="text-slate-700 mt-0.5">${getPrepConcept(prep)}</p>
+          <div class="bg-amber-50 p-2.5 rounded border border-amber-100">
+            <span class="font-bold text-amber-800 text-xs">🧭 空間方向 (${prep})：</span>
+            <p class="text-slate-700 text-xs mt-0.5">${getPrepConcept(prep)}</p>
           </div>
 
-          ${item.examples ? `
-          <div>
-            <span class="font-bold text-slate-600 text-xs block mb-1">💡 相關心智範例：</span>
-            <ul class="list-disc list-inside text-xs text-slate-600 bg-slate-50 p-2 rounded">
-              ${item.examples.split('\n').filter(e => e.toLowerCase().includes(prep.toLowerCase())).map(ex => `<li>${escapeHtml(ex)}</li>`).join('') || '<li>未特別標註此範例，可自訂新增！</li>'}
-            </ul>
-          </div>
-          ` : ''}
+          <!-- 編輯表單 -->
+          <form onsubmit="saveMatrixNote(event, '${item.id}', '${prep}')" class="pt-2 border-t border-slate-100 space-y-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">💡 這個片語的心智範例 / 筆記 (新增至卡片中)</label>
+              <textarea id="matrixNoteInput" rows="3" placeholder="輸入範例，例如：Take off the coat (伸手抓取並使其脫離身體 -> 脫大衣)" 
+                        class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" onclick="closeMatrixDetail()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700">取消</button>
+              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-1.5 rounded text-xs shadow">儲存片語筆記</button>
+            </div>
+          </form>
         </div>
       `;
+
+      // 如果該範例已有相符內容，填入輸入框預覽
+      if (item.examples) {
+        const existingLines = item.examples.split('\n').filter(e => e.toLowerCase().includes(prep.toLowerCase()));
+        if (existingLines.length > 0) {
+          document.getElementById('matrixNoteInput').value = existingLines.join('\n');
+        }
+      }
+
       document.getElementById('matrixDetailModal').classList.remove('hidden');
+    }
+
+    // 儲存矩陣中的片語筆記回 Firebase
+    async function saveMatrixNote(e, verbId, prep) {
+      e.preventDefault();
+      const newNote = document.getElementById('matrixNoteInput').value.trim();
+      const item = verbsData.find(v => v.id === verbId);
+      if (!item) return;
+
+      // 1. 更新 Collocations 標籤，確保包含這個介系詞
+      let collocationsArr = item.collocations ? item.collocations.split(',').map(c => c.trim()) : [];
+      if (!collocationsArr.map(c => c.toUpperCase()).includes(prep.toUpperCase())) {
+        collocationsArr.push(prep.toUpperCase());
+      }
+
+      // 2. 更新 Examples 範例
+      let examplesArr = item.examples ? item.examples.split('\n').filter(e => e.trim()) : [];
+      // 移除舊有關於這個介系詞的描述，換成新的
+      examplesArr = examplesArr.filter(e => !e.toLowerCase().includes(prep.toLowerCase()));
+      if (newNote) {
+        examplesArr.push(newNote);
+      }
+
+      const updatedData = {
+        collocations: collocationsArr.join(', '),
+        examples: examplesArr.join('\n'),
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
+        closeMatrixDetail();
+      } catch (err) {
+        alert("儲存片語筆记失敗: " + err.message);
+      }
     }
 
     function closeMatrixDetail() {
