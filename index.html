@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英文動詞心智思維庫 (Verb Mental Engine)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // 替換為你的 Firebase 專案設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyC75QvUqKgPusS1z7uYOQrKg38VajDRc80",
+    authDomain: "englishnote-c2462.firebaseapp.com",
+    projectId: "englishnote-c2462",
+    storageBucket: "englishnote-c2462.firebasestorage.app",
+    messagingSenderId: "727644589126",
+    appId: "1:727644589126:web:5e5e1deed9ca691afa0e47",
+    measurementId: "G-BYHGCY6TXD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const verbsCol = collection(db, "verbs");
+
+    // 全域變數
+    window.db = db;
+    window.verbsCol = verbsCol;
+    window.addDoc = addDoc;
+    window.updateDoc = updateDoc;
+    window.deleteDoc = deleteDoc;
+    window.doc = doc;
+    window.query = query;
+    window.orderBy = orderBy;
+    window.onSnapshot = onSnapshot;
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-6 font-sans">
+
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b border-slate-200 pb-6">
+      <div>
+        <h1 class="text-3xl font-extrabold text-blue-600 tracking-wide">VERB MENTAL ENGINE</h1>
+        <p class="text-slate-500 text-sm mt-1">擺脫中文翻譯，建立母語者的動詞心智圖像與空間思考</p>
+      </div>
+      
+      <div class="flex gap-3 w-full md:w-auto">
+        <input type="text" id="searchInput" placeholder="搜尋動詞或核心概念..." 
+               class="bg-white border border-slate-300 text-slate-800 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 md:w-64 shadow-sm"
+               oninput="filterCards()">
+        <button onclick="openModal()" 
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-md whitespace-nowrap">
+          + 新增動詞
+        </button>
+      </div>
+    </header>
+
+    <!-- Cards Grid -->
+    <main id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="col-span-full text-center py-12 text-slate-400">載入雲端資料中...</div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="verbModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <h2 id="modalTitle" class="text-xl font-bold text-blue-600 mb-4">新增動詞心智卡片</h2>
+      
+      <form id="verbForm" onsubmit="saveVerb(event)" class="space-y-4">
+        <input type="hidden" id="editingId">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">動詞 (Verb)</label>
+          <input type="text" id="verbInput" required placeholder="例如：RIDE" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 uppercase font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">核心圖像描述 (Core Concept / Mental Image)</label>
+          <textarea id="coreImageInput" required rows="2" placeholder="置身於某種移動載體之上（被帶著走或掌控其方向）" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">心智範例 (Mental Examples - 每行一個)</label>
+          <textarea id="examplesInput" rows="3" placeholder="Ride a horse (靠一匹馬移動)&#10;Ride a bus (靠一台公車移動)&#10;Ride an elevator (靠電梯移動)" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">常見搭配詞 (Collocations - 用逗號分隔)</label>
+          <input type="text" id="collocationsInput" placeholder="ride out the storm, ride a wave, give someone a ride" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">反面誤區 / 傳統翻譯陷阱 (Pitfalls)</label>
+          <textarea id="pitfallsInput" rows="2" placeholder="不要死記：騎、搭、乘、坐四種翻譯。只要是靠載體移動就是 RIDE。" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 text-slate-500 hover:text-slate-700">取消</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow">儲存卡片</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    let verbsData = [];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const checkFirebase = setInterval(() => {
+        if (window.verbsCol) {
+          clearInterval(checkFirebase);
+          const q = window.query(window.verbsCol, window.orderBy("verb", "asc"));
+          window.onSnapshot(q, (snapshot) => {
+            verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderCards(verbsData);
+          });
+        }
+      }, 100);
+    });
+
+    function renderCards(data) {
+      const container = document.getElementById('cardsContainer');
+      if (data.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400">尚無卡片，點擊右上角新增第一個動詞！</div>`;
+        return;
+      }
+
+      container.innerHTML = data.map(item => `
+        <div class="bg-white border border-slate-200 hover:border-blue-300 rounded-xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <!-- 動詞標題與操作區 -->
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="text-3xl font-black text-slate-800 tracking-wider">${escapeHtml(item.verb)}</h2>
+              <div class="flex gap-2">
+                <button onclick="editCard('${item.id}')" class="text-xs text-slate-400 hover:text-blue-600 font-medium">編輯</button>
+                <button onclick="deleteCard('${item.id}', '${escapeHtml(item.verb)}')" class="text-xs text-slate-400 hover:text-rose-500 font-medium">刪除</button>
+              </div>
+            </div>
+
+            <!-- 核心心智圖像 -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r mb-4">
+              <span class="text-xs uppercase font-bold text-blue-600 block mb-1">🧠 Core Image / 核心概念</span>
+              <p class="text-slate-700 font-medium">${escapeHtml(item.coreImage)}</p>
+            </div>
+
+            <!-- 心智範例 -->
+            ${item.examples ? `
+            <div class="mb-4">
+              <span class="text-xs font-bold text-slate-400 block mb-1">💡 心智範例 (Mental Examples)</span>
+              <ul class="list-disc list-inside text-sm text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded border border-slate-100">
+                ${item.examples.split('\n').filter(e => e.trim()).map(ex => `<li>${escapeHtml(ex)}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
+
+            <!-- 搭配詞 -->
+            ${item.collocations ? `
+            <div class="mb-4">
+              <span class="text-xs font-bold text-slate-400 block mb-1">🔗 常見搭配 (Collocations)</span>
+              <div class="flex flex-wrap gap-1.5">
+                ${item.collocations.split(',').map(c => `<span class="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-full border border-slate-200">${escapeHtml(c.trim())}</span>`).join('')}
+              </div>
+            </div>
+            ` : ''}
+          </div>
+
+          <!-- 反面誤區 -->
+          ${item.pitfalls ? `
+          <div class="mt-2 pt-3 border-t border-slate-100 text-xs text-amber-700 bg-amber-50/50 p-2 rounded">
+            <span class="font-bold">⚠️ 中文思考陷阱：</span> ${escapeHtml(item.pitfalls)}
+          </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function filterCards() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = verbsData.filter(v => 
+        v.verb.toLowerCase().includes(query) || 
+        v.coreImage.toLowerCase().includes(query) ||
+        (v.collocations && v.collocations.toLowerCase().includes(query))
+      );
+      renderCards(filtered);
+    }
+
+    function openModal() {
+      document.getElementById('modalTitle').innerText = "新增動詞心智卡片";
+      document.getElementById('verbForm').reset();
+      document.getElementById('editingId').value = "";
+      document.getElementById('verbModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('verbModal').classList.add('hidden');
+    }
+
+    function editCard(id) {
+      const item = verbsData.find(v => v.id === id);
+      if (!item) return;
+
+      document.getElementById('modalTitle').innerText = "編輯動詞心智卡片";
+      document.getElementById('editingId').value = item.id;
+      document.getElementById('verbInput').value = item.verb;
+      document.getElementById('coreImageInput').value = item.coreImage;
+      document.getElementById('examplesInput').value = item.examples || "";
+      document.getElementById('collocationsInput').value = item.collocations || "";
+      document.getElementById('pitfallsInput').value = item.pitfalls || "";
+
+      document.getElementById('verbModal').classList.remove('hidden');
+    }
+
+    async function deleteCard(id, verb) {
+      if (confirm(`確定要刪除動詞「${verb}」的卡片嗎？`)) {
+        try {
+          await window.deleteDoc(window.doc(window.db, "verbs", id));
+        } catch (err) {
+          alert("刪除失敗: " + err.message);
+        }
+      }
+    }
+
+    async function saveVerb(e) {
+      e.preventDefault();
+      const editingId = document.getElementById('editingId').value;
+      const verbData = {
+        verb: document.getElementById('verbInput').value.trim().toUpperCase(),
+        coreImage: document.getElementById('coreImageInput').value.trim(),
+        examples: document.getElementById('examplesInput').value.trim(),
+        collocations: document.getElementById('collocationsInput').value.trim(),
+        pitfalls: document.getElementById('pitfallsInput').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        if (editingId) {
+          await window.updateDoc(window.doc(window.db, "verbs", editingId), verbData);
+        } else {
+          verbData.createdAt = new Date().toISOString();
+          await window.addDoc(window.verbsCol, verbData);
+        }
+        closeModal();
+      } catch (err) {
+        alert("儲存失敗: " + err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
