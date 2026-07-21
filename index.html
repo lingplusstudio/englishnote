@@ -8,7 +8,7 @@
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     // 替換為你的 Firebase 專案設定
     const firebaseConfig = {
@@ -31,8 +31,6 @@ const app = initializeApp(firebaseConfig);
     window.updateDoc = updateDoc;
     window.deleteDoc = deleteDoc;
     window.doc = doc;
-    window.query = query;
-    window.orderBy = orderBy;
     window.onSnapshot = onSnapshot;
   </script>
 </head>
@@ -40,26 +38,46 @@ const app = initializeApp(firebaseConfig);
 
   <div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b border-slate-200 pb-6">
+    <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-200 pb-6">
       <div>
         <h1 class="text-3xl font-extrabold text-blue-600 tracking-wide">VERB MENTAL ENGINE</h1>
-        <p class="text-slate-500 text-sm mt-1">擺脫中文翻譯，建立母語者的動詞心智圖像與空間思考</p>
+        <p class="text-slate-500 text-sm mt-1">動詞（力量）× 介系詞（空間方向）直角座標視覺矩陣</p>
       </div>
       
-      <div class="flex gap-3 w-full md:w-auto">
-        <input type="text" id="searchInput" placeholder="搜尋動詞或核心概念..." 
-               class="bg-white border border-slate-300 text-slate-800 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 md:w-64 shadow-sm"
+      <!-- 檢視模式切換與功能鈕 -->
+      <div class="flex flex-wrap gap-3 w-full md:w-auto items-center">
+        <!-- 視圖切換 Tab -->
+        <div class="bg-slate-200 p-1 rounded-lg flex gap-1">
+          <button id="tabCards" onclick="switchView('cards')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition">
+            🎴 卡片牆
+          </button>
+          <button id="tabMatrix" onclick="switchView('matrix')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
+            📐 座標矩陣 (2D Matrix)
+          </button>
+        </div>
+
+        <input type="text" id="searchInput" placeholder="搜尋動詞、片語或概念..." 
+               class="bg-white border border-slate-300 text-slate-800 px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm flex-1 md:w-48 shadow-sm"
                oninput="filterCards()">
+        
         <button onclick="openModal()" 
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-md whitespace-nowrap">
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-md text-sm whitespace-nowrap">
           + 新增動詞
         </button>
       </div>
     </header>
 
-    <!-- Cards Grid (A-Z Sorted & Collapsible) -->
-    <main id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+    <!-- 1. 卡片牆檢視 (Cards View) -->
+    <main id="cardsView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       <div class="col-span-full text-center py-12 text-slate-400">載入雲端資料中...</div>
+    </main>
+
+    <!-- 2. 直角座標矩陣檢視 (Matrix View) -->
+    <main id="matrixView" class="hidden bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-x-auto">
+      <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-2">
+        <span>💡 <b>矩陣使用說明：</b> 橫軸為 <b>動詞（力量）</b>，縱軸為 <b>介系詞（空間方向）</b>。點擊交會格子即可看心智合體畫面！</span>
+      </div>
+      <div id="matrixTableContainer"></div>
     </main>
   </div>
 
@@ -73,27 +91,27 @@ const app = initializeApp(firebaseConfig);
 
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">動詞 (Verb)</label>
-          <input type="text" id="verbInput" required placeholder="例如：RIDE" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 uppercase font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+          <input type="text" id="verbInput" required placeholder="例如：TAKE" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 uppercase font-bold focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">核心圖像描述 (Core Concept / Mental Image)</label>
-          <textarea id="coreImageInput" required rows="2" placeholder="置身於某種移動載體之上（被帶著走或掌控其方向）" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+          <textarea id="coreImageInput" required rows="2" placeholder="伸手「抓取/接收」一個對象，將其納入掌控或流程中。" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">心智範例 (Mental Examples - 每行一個)</label>
-          <textarea id="examplesInput" rows="3" placeholder="Ride a horse (靠一匹馬移動)&#10;Ride a bus (靠一台公車移動)&#10;Ride an elevator (靠電梯移動)" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+          <textarea id="examplesInput" rows="3" placeholder="Take a bus (抓取並進入公車系統)&#10;Take off (伸手抓取並使其脫離表面 -> 脫衣/起飛)" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">常見搭配詞 (Collocations - 用逗號分隔)</label>
-          <input type="text" id="collocationsInput" placeholder="ride out the storm, ride a wave, give someone a ride" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+          <label class="block text-xs font-bold text-slate-600 mb-1">常見搭配詞 / 片語 (Collocations - 用逗號分隔)</label>
+          <input type="text" id="collocationsInput" placeholder="take off, take over, take in, take on, take away" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">反面誤區 / 傳統翻譯陷阱 (Pitfalls)</label>
-          <textarea id="pitfallsInput" rows="2" placeholder="不要死記：騎、搭、乘、坐四種翻譯。只要是靠載體移動就是 RIDE。" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+          <textarea id="pitfallsInput" rows="2" placeholder="不要死記：吃藥、搭車、拍照等翻譯，核心永遠是伸手抓取。" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
         </div>
 
         <div class="flex justify-end gap-3 pt-4">
@@ -104,42 +122,77 @@ const app = initializeApp(firebaseConfig);
     </div>
   </div>
 
+  <!-- Detail Popover Modal for Matrix -->
+  <div id="matrixDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full border border-slate-200 shadow-2xl">
+      <div id="matrixDetailContent"></div>
+      <div class="flex justify-end pt-4 border-t border-slate-100 mt-4">
+        <button onclick="closeMatrixDetail()" class="bg-blue-600 text-white px-4 py-1.5 rounded font-bold text-sm">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Application Logic -->
   <script>
     let verbsData = [];
-    // 紀錄展開狀態的集合
     const expandedCards = new Set();
+    let currentView = 'cards';
 
-   window.addEventListener('DOMContentLoaded', () => {
-  const checkFirebase = setInterval(() => {
-    if (window.verbsCol) {
-      clearInterval(checkFirebase);
-      // 直接監聽整個 Collection，不使用雲端 orderBy，避免欄位缺失或索引問題
-      window.onSnapshot(window.verbsCol, (snapshot) => {
-        verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderCards(verbsData);
-      });
+    // 核心預設介系詞清單 (Y 軸)
+    const PREPOSITIONS = ['OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH'];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const checkFirebase = setInterval(() => {
+        if (window.verbsCol) {
+          clearInterval(checkFirebase);
+          window.onSnapshot(window.verbsCol, (snapshot) => {
+            verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            render();
+          });
+        }
+      }, 100);
+    });
+
+    function switchView(view) {
+      currentView = view;
+      const tabCards = document.getElementById('tabCards');
+      const tabMatrix = document.getElementById('tabMatrix');
+      const cardsView = document.getElementById('cardsView');
+      const matrixView = document.getElementById('matrixView');
+
+      if (view === 'cards') {
+        tabCards.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
+        tabMatrix.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        cardsView.classList.remove('hidden');
+        matrixView.classList.add('hidden');
+      } else {
+        tabMatrix.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
+        tabCards.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        matrixView.classList.remove('hidden');
+        cardsView.classList.add('hidden');
+        renderMatrix(verbsData);
+      }
     }
-  }, 100);
-});
+
+    function render() {
+      if (currentView === 'cards') renderCards(verbsData);
+      else renderMatrix(verbsData);
+    }
 
     function toggleExpand(id) {
-      if (expandedCards.has(id)) {
-        expandedCards.delete(id);
-      } else {
-        expandedCards.add(id);
-      }
-      filterCards(); // 重新渲染當前過濾後的清單
+      if (expandedCards.has(id)) expandedCards.delete(id);
+      else expandedCards.add(id);
+      filterCards();
     }
 
+    // 1. 渲染卡片牆
     function renderCards(data) {
-      const container = document.getElementById('cardsContainer');
+      const container = document.getElementById('cardsView');
       if (data.length === 0) {
         container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400">尚無卡片，點擊右上角新增第一個動詞！</div>`;
         return;
       }
 
-      // 前端二次確保 A-Z 排序
       const sortedData = [...data].sort((a, b) => a.verb.localeCompare(b.verb));
 
       container.innerHTML = sortedData.map(item => {
@@ -148,7 +201,6 @@ const app = initializeApp(firebaseConfig);
 
         return `
         <div class="bg-white border border-slate-200 hover:border-blue-300 rounded-xl p-5 shadow-sm hover:shadow-md transition">
-          <!-- 頂部標題與編輯按鈕 -->
           <div class="flex justify-between items-center mb-2">
             <h2 class="text-2xl font-black text-slate-800 tracking-wider">${escapeHtml(item.verb)}</h2>
             <div class="flex gap-2">
@@ -157,23 +209,19 @@ const app = initializeApp(firebaseConfig);
             </div>
           </div>
 
-          <!-- 核心心智圖像（永遠顯示） -->
           <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r">
             <span class="text-[10px] uppercase font-bold text-blue-600 block mb-0.5">🧠 Core Image</span>
             <p class="text-slate-700 font-medium text-sm">${escapeHtml(item.coreImage)}</p>
           </div>
 
-          <!-- 展開/折疊 按鈕 -->
           ${hasDetails ? `
           <button onclick="toggleExpand('${item.id}')" class="w-full mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold hover:text-blue-700 focus:outline-none">
             <span>${isExpanded ? '▲ 收起詳細內容' : '▼ 查看範例與搭配詞'}</span>
           </button>
           ` : ''}
 
-          <!-- 可折疊隱藏區塊 -->
           ${isExpanded ? `
-          <div class="mt-3 space-y-3 pt-2 border-t border-slate-100 animate-fadeIn">
-            <!-- 心智範例 -->
+          <div class="mt-3 space-y-3 pt-2 border-t border-slate-100">
             ${item.examples ? `
             <div>
               <span class="text-xs font-bold text-slate-400 block mb-1">💡 心智範例 (Examples)</span>
@@ -183,7 +231,6 @@ const app = initializeApp(firebaseConfig);
             </div>
             ` : ''}
 
-            <!-- 搭配詞 -->
             ${item.collocations ? `
             <div>
               <span class="text-xs font-bold text-slate-400 block mb-1">🔗 常見搭配 (Collocations)</span>
@@ -193,7 +240,6 @@ const app = initializeApp(firebaseConfig);
             </div>
             ` : ''}
 
-            <!-- 反面誤區 -->
             ${item.pitfalls ? `
             <div class="text-xs text-amber-800 bg-amber-50/80 p-2 rounded border border-amber-100">
               <span class="font-bold">⚠️ 中文思考陷阱：</span> ${escapeHtml(item.pitfalls)}
@@ -206,6 +252,110 @@ const app = initializeApp(firebaseConfig);
       }).join('');
     }
 
+    // 2. 渲染直角座標矩陣 (Matrix View)
+    function renderMatrix(data) {
+      const container = document.getElementById('matrixTableContainer');
+      const sortedVerbs = [...data].sort((a, b) => a.verb.localeCompare(b.verb));
+
+      if (sortedVerbs.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400">尚無資料可建立矩陣。</div>`;
+        return;
+      }
+
+      let html = `<table class="w-full border-collapse text-left text-xs">`;
+      
+      // Header Row (X 軸：動詞)
+      html += `<thead><tr><th class="p-2 border border-slate-200 bg-slate-100 text-slate-500 font-bold w-24 sticky left-0 z-10">介系詞 \\ 動詞</th>`;
+      sortedVerbs.forEach(v => {
+        html += `<th class="p-2 border border-slate-200 bg-blue-50 text-blue-700 font-black text-center text-sm min-w-[90px]">${escapeHtml(v.verb)}</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      // Matrix Body (Y 軸：介系詞)
+      PREPOSITIONS.forEach(prep => {
+        html += `<tr>`;
+        // Sticky Header Column (Y 軸標題)
+        html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
+
+        sortedVerbs.forEach(v => {
+          // 檢查該動詞的 collocations 或 examples 是否包含這個介系詞片語 (如 "TAKE OFF" 或 "OFF")
+          const targetPhrase = `${v.verb} ${prep}`.toLowerCase();
+          const hasMatch = (v.collocations && v.collocations.toLowerCase().includes(prep.toLowerCase())) ||
+                           (v.examples && v.examples.toLowerCase().includes(targetPhrase));
+
+          if (hasMatch) {
+            html += `
+              <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
+                  class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 font-bold text-center cursor-pointer transition">
+                ✨ ${v.verb} ${prep}
+              </td>`;
+          } else {
+            html += `<td class="p-2 border border-slate-200 text-center text-slate-300">-</td>`;
+          }
+        });
+        html += `</tr>`;
+      });
+
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    // 點擊矩陣單元格看心智組合細節
+    function openMatrixDetail(verbId, prep) {
+      const item = verbsData.find(v => v.id === verbId);
+      if (!item) return;
+
+      const content = document.getElementById('matrixDetailContent');
+      content.innerHTML = `
+        <div class="text-center mb-4 border-b pb-3">
+          <span class="text-xs uppercase font-bold text-slate-400">心智座標交會點</span>
+          <h3 class="text-3xl font-black text-blue-600 mt-1">${escapeHtml(item.verb)} + ${prep}</h3>
+        </div>
+        
+        <div class="space-y-3 text-sm">
+          <div class="bg-slate-50 p-3 rounded border border-slate-100">
+            <span class="font-bold text-blue-600">💥 力量來源 (${item.verb})：</span>
+            <p class="text-slate-700 mt-0.5">${escapeHtml(item.coreImage)}</p>
+          </div>
+
+          <div class="bg-amber-50 p-3 rounded border border-amber-100">
+            <span class="font-bold text-amber-800">🧭 空間方向 (${prep})：</span>
+            <p class="text-slate-700 mt-0.5">${getPrepConcept(prep)}</p>
+          </div>
+
+          ${item.examples ? `
+          <div>
+            <span class="font-bold text-slate-600 text-xs block mb-1">💡 相關心智範例：</span>
+            <ul class="list-disc list-inside text-xs text-slate-600 bg-slate-50 p-2 rounded">
+              ${item.examples.split('\n').filter(e => e.toLowerCase().includes(prep.toLowerCase())).map(ex => `<li>${escapeHtml(ex)}</li>`).join('') || '<li>未特別標註此範例，可自訂新增！</li>'}
+            </ul>
+          </div>
+          ` : ''}
+        </div>
+      `;
+      document.getElementById('matrixDetailModal').classList.remove('hidden');
+    }
+
+    function closeMatrixDetail() {
+      document.getElementById('matrixDetailModal').classList.add('hidden');
+    }
+
+    function getPrepConcept(prep) {
+      const concepts = {
+        'OFF': '脫離原本表面/軌道，切斷連結。',
+        'ON': '附著於表面接觸，或沿著線路/時間持續推進。',
+        'OUT': '從內部容器破框而出，或擴散到邊界盡頭（徹底化）。',
+        'IN': '置身於特定框框或空間內部。',
+        'INTO': '穿透邊界進入內部，或質性徹底轉變。',
+        'UP': '垂直向上提升、浮上檯面顯現、或徹底達成最高點。',
+        'DOWN': '垂直向下沉降、強度減弱、或向下壓制固定。',
+        'OVER': '弧形跨越障礙頂部、完全覆蓋、或翻轉倒下。',
+        'AWAY': '朝向視線或焦點之外遠離，直到消失。',
+        'THROUGH': '從封閉空間或時間的這一端「貫穿透過去」到另一端。'
+      };
+      return concepts[prep] || '空間方向延伸。';
+    }
+
     function filterCards() {
       const query = document.getElementById('searchInput').value.toLowerCase();
       const filtered = verbsData.filter(v => 
@@ -213,7 +363,8 @@ const app = initializeApp(firebaseConfig);
         v.coreImage.toLowerCase().includes(query) ||
         (v.collocations && v.collocations.toLowerCase().includes(query))
       );
-      renderCards(filtered);
+      if (currentView === 'cards') renderCards(filtered);
+      else renderMatrix(filtered);
     }
 
     function openModal() {
