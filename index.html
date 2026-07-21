@@ -110,19 +110,18 @@ const app = initializeApp(firebaseConfig);
     // 紀錄展開狀態的集合
     const expandedCards = new Set();
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const checkFirebase = setInterval(() => {
-        if (window.verbsCol) {
-          clearInterval(checkFirebase);
-          // 使用 orderBy("verb", "asc") 確保從 Firebase 撈出來就自動按 A-Z 排序
-          const q = window.query(window.verbsCol, window.orderBy("verb", "asc"));
-          window.onSnapshot(q, (snapshot) => {
-            verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderCards(verbsData);
-          });
-        }
-      }, 100);
-    });
+   window.addEventListener('DOMContentLoaded', () => {
+  const checkFirebase = setInterval(() => {
+    if (window.verbsCol) {
+      clearInterval(checkFirebase);
+      // 直接監聽整個 Collection，不使用雲端 orderBy，避免欄位缺失或索引問題
+      window.onSnapshot(window.verbsCol, (snapshot) => {
+        verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderCards(verbsData);
+      });
+    }
+  }, 100);
+});
 
     function toggleExpand(id) {
       if (expandedCards.has(id)) {
