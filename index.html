@@ -20,8 +20,7 @@
     appId: "1:727644589126:web:5e5e1deed9ca691afa0e47",
     measurementId: "G-BYHGCY6TXD"
     };
-
-    const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const verbsCol = collection(db, "verbs");
 
@@ -58,8 +57,8 @@
       </div>
     </header>
 
-    <!-- Cards Grid -->
-    <main id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Cards Grid (A-Z Sorted & Collapsible) -->
+    <main id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       <div class="col-span-full text-center py-12 text-slate-400">載入雲端資料中...</div>
     </main>
   </div>
@@ -108,11 +107,14 @@
   <!-- Application Logic -->
   <script>
     let verbsData = [];
+    // 紀錄展開狀態的集合
+    const expandedCards = new Set();
 
     window.addEventListener('DOMContentLoaded', () => {
       const checkFirebase = setInterval(() => {
         if (window.verbsCol) {
           clearInterval(checkFirebase);
+          // 使用 orderBy("verb", "asc") 確保從 Firebase 撈出來就自動按 A-Z 排序
           const q = window.query(window.verbsCol, window.orderBy("verb", "asc"));
           window.onSnapshot(q, (snapshot) => {
             verbsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -122,6 +124,15 @@
       }, 100);
     });
 
+    function toggleExpand(id) {
+      if (expandedCards.has(id)) {
+        expandedCards.delete(id);
+      } else {
+        expandedCards.add(id);
+      }
+      filterCards(); // 重新渲染當前過濾後的清單
+    }
+
     function renderCards(data) {
       const container = document.getElementById('cardsContainer');
       if (data.length === 0) {
@@ -129,29 +140,45 @@
         return;
       }
 
-      container.innerHTML = data.map(item => `
-        <div class="bg-white border border-slate-200 hover:border-blue-300 rounded-xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-          <div>
-            <!-- 動詞標題與操作區 -->
-            <div class="flex justify-between items-center mb-3">
-              <h2 class="text-3xl font-black text-slate-800 tracking-wider">${escapeHtml(item.verb)}</h2>
-              <div class="flex gap-2">
-                <button onclick="editCard('${item.id}')" class="text-xs text-slate-400 hover:text-blue-600 font-medium">編輯</button>
-                <button onclick="deleteCard('${item.id}', '${escapeHtml(item.verb)}')" class="text-xs text-slate-400 hover:text-rose-500 font-medium">刪除</button>
-              </div>
-            </div>
+      // 前端二次確保 A-Z 排序
+      const sortedData = [...data].sort((a, b) => a.verb.localeCompare(b.verb));
 
-            <!-- 核心心智圖像 -->
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r mb-4">
-              <span class="text-xs uppercase font-bold text-blue-600 block mb-1">🧠 Core Image / 核心概念</span>
-              <p class="text-slate-700 font-medium">${escapeHtml(item.coreImage)}</p>
-            </div>
+      container.innerHTML = sortedData.map(item => {
+        const isExpanded = expandedCards.has(item.id);
+        const hasDetails = item.examples || item.collocations || item.pitfalls;
 
+        return `
+        <div class="bg-white border border-slate-200 hover:border-blue-300 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+          <!-- 頂部標題與編輯按鈕 -->
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-2xl font-black text-slate-800 tracking-wider">${escapeHtml(item.verb)}</h2>
+            <div class="flex gap-2">
+              <button onclick="editCard('${item.id}')" class="text-xs text-slate-400 hover:text-blue-600 font-medium">編輯</button>
+              <button onclick="deleteCard('${item.id}', '${escapeHtml(item.verb)}')" class="text-xs text-slate-400 hover:text-rose-500 font-medium">刪除</button>
+            </div>
+          </div>
+
+          <!-- 核心心智圖像（永遠顯示） -->
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r">
+            <span class="text-[10px] uppercase font-bold text-blue-600 block mb-0.5">🧠 Core Image</span>
+            <p class="text-slate-700 font-medium text-sm">${escapeHtml(item.coreImage)}</p>
+          </div>
+
+          <!-- 展開/折疊 按鈕 -->
+          ${hasDetails ? `
+          <button onclick="toggleExpand('${item.id}')" class="w-full mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold hover:text-blue-700 focus:outline-none">
+            <span>${isExpanded ? '▲ 收起詳細內容' : '▼ 查看範例與搭配詞'}</span>
+          </button>
+          ` : ''}
+
+          <!-- 可折疊隱藏區塊 -->
+          ${isExpanded ? `
+          <div class="mt-3 space-y-3 pt-2 border-t border-slate-100 animate-fadeIn">
             <!-- 心智範例 -->
             ${item.examples ? `
-            <div class="mb-4">
-              <span class="text-xs font-bold text-slate-400 block mb-1">💡 心智範例 (Mental Examples)</span>
-              <ul class="list-disc list-inside text-sm text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded border border-slate-100">
+            <div>
+              <span class="text-xs font-bold text-slate-400 block mb-1">💡 心智範例 (Examples)</span>
+              <ul class="list-disc list-inside text-xs text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded border border-slate-100">
                 ${item.examples.split('\n').filter(e => e.trim()).map(ex => `<li>${escapeHtml(ex)}</li>`).join('')}
               </ul>
             </div>
@@ -159,23 +186,25 @@
 
             <!-- 搭配詞 -->
             ${item.collocations ? `
-            <div class="mb-4">
+            <div>
               <span class="text-xs font-bold text-slate-400 block mb-1">🔗 常見搭配 (Collocations)</span>
-              <div class="flex flex-wrap gap-1.5">
-                ${item.collocations.split(',').map(c => `<span class="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-full border border-slate-200">${escapeHtml(c.trim())}</span>`).join('')}
+              <div class="flex flex-wrap gap-1">
+                ${item.collocations.split(',').map(c => `<span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded border border-slate-200">${escapeHtml(c.trim())}</span>`).join('')}
               </div>
             </div>
             ` : ''}
-          </div>
 
-          <!-- 反面誤區 -->
-          ${item.pitfalls ? `
-          <div class="mt-2 pt-3 border-t border-slate-100 text-xs text-amber-700 bg-amber-50/50 p-2 rounded">
-            <span class="font-bold">⚠️ 中文思考陷阱：</span> ${escapeHtml(item.pitfalls)}
+            <!-- 反面誤區 -->
+            ${item.pitfalls ? `
+            <div class="text-xs text-amber-800 bg-amber-50/80 p-2 rounded border border-amber-100">
+              <span class="font-bold">⚠️ 中文思考陷阱：</span> ${escapeHtml(item.pitfalls)}
+            </div>
+            ` : ''}
           </div>
           ` : ''}
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function filterCards() {
