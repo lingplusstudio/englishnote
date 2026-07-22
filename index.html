@@ -41,7 +41,7 @@ const app = initializeApp(firebaseConfig);
     <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-200 pb-6">
       <div>
         <h1 class="text-3xl font-extrabold text-blue-600 tracking-wide">VERB MENTAL ENGINE</h1>
-        <p class="text-slate-500 text-sm mt-1">動詞（力量）× 介系詞（空間方向）直角座標視覺矩陣</p>
+        <p class="text-slate-500 text-sm mt-1">動詞（力量）× 介系詞（25大空間方向）直角座標視覺矩陣</p>
       </div>
       
       <!-- 檢視模式切換與功能鈕 -->
@@ -135,8 +135,13 @@ const app = initializeApp(firebaseConfig);
     const expandedCards = new Set();
     let currentView = 'cards';
 
-    // 介系詞與空間副詞清單 (Y 軸)
-    const PREPOSITIONS = ['FOR', 'AT', 'TO', 'OF', 'WITH', 'BACK', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
+    // 介系詞與空間副詞清單 (Y 軸，已完成 25 大完全體補齊)
+    const PREPOSITIONS = [
+      'FOR', 'AT', 'TO', 'OF', 'WITH', 'BY', 'BACK', 
+      'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 
+      'OVER', 'AWAY', 'THROUGH', 'ABOUT', 'ACROSS', 'ALONG',
+      'AGAINST', 'AROUND', 'UNDER', 'BEHIND', 'BEFORE'
+    ];
 
     window.addEventListener('DOMContentLoaded', () => {
       const checkFirebase = setInterval(() => {
@@ -249,7 +254,7 @@ const app = initializeApp(firebaseConfig);
       }).join('');
     }
 
-    // 輔助函式：只精準讀取專屬矩陣筆記 matrixNotes[prep]
+    // 輔助函式：精準讀取專屬矩陣筆記 matrixNotes[prep]
     function getCellNote(item, prep) {
       if (!item || !item.matrixNotes) return '';
       return item.matrixNotes[prep] ? item.matrixNotes[prep].trim() : '';
@@ -282,7 +287,6 @@ const app = initializeApp(firebaseConfig);
         sortedVerbs.forEach(v => {
           const noteContent = getCellNote(v, prep);
 
-          // 只有當此格被親自輸入並儲存了筆記，才顯示藍色亮燈，否則一律空白短槓 (-)
           if (noteContent !== '') {
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
@@ -339,7 +343,7 @@ const app = initializeApp(firebaseConfig);
                 <span class="text-[10px] text-slate-400 font-normal">清空內容儲存即代表不建立這格</span>
               </label>
               <textarea id="matrixNoteInput" rows="6" 
-                        placeholder="例如：&#10;Bring to light (將隱藏的事物一路拉到光亮處落地 -> 揭露/使真相大白)" 
+                        placeholder="例如：&#10;Come up against a problem (正面碰撞難題 -> 遇到棘手問題)" 
                         class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y">${escapeHtml(noteContent)}</textarea>
             </div>
 
@@ -354,7 +358,7 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存機制（純粹更新 matrixNotes 字典）
+    // 儲存機制（更新 matrixNotes 字典）
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
@@ -390,6 +394,7 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.add('hidden');
     }
 
+    // 完整 25 大空間心智字典
     function getPrepConcept(prep) {
       const concepts = {
         'FOR': '視線、力量朝向特定的「目標標的」，或是作為等價的「對等交換/替代」。',
@@ -397,6 +402,7 @@ const app = initializeApp(firebaseConfig);
         'TO': '箭頭一路延伸，直到「抵達並觸碰/貼合到終點目標」。',
         'OF': '從一個較大的整體/源頭中「分離出來」，或是標示原型的歸屬。',
         'WITH': '兩者緊密處於同一空間「同行相伴」，或是手中「持拿著工具」進行動作。',
+        'BY': '移動到「近旁/手邊」，順道經過或順手捕捉。',
         'BACK': '順著原路折返，朝向起點或過去的時間/位置。',
         'OFF': '脫離原本表面/軌道，切斷連結。',
         'ON': '附著於表面接觸，或沿著線路/時間持續推進。',
@@ -408,7 +414,14 @@ const app = initializeApp(firebaseConfig);
         'OVER': '弧形跨越障礙頂部、完全覆蓋、或翻轉倒下。',
         'AWAY': '朝向視線或焦點之外遠離，直到消失。',
         'THROUGH': '從封閉空間或時間的這一端「貫穿透過去」到另一端。',
-        'ABOUT': '圍繞著核心周圍分佈（大約/圍繞主題）。'
+        'ABOUT': '圍繞著核心周圍分佈（大約/圍繞主題）。',
+        'ACROSS': '對象從平面的這一端「橫越/穿過」，直接撞進視野焦點。',
+        'ALONG': '沿著既有的線路、軌道或時間「一路順流推進」。',
+        'AGAINST': '力量朝向目標「正面碰撞」、「緊貼抵靠」或「逆向對抗」。',
+        'AROUND': '在特定範圍內「環繞運轉」或「不指定方向地四處流動」。',
+        'UNDER': '處於上方主體或框架的「正下方受壓制、涵蓋或管理」。',
+        'BEHIND': '處於前方標的的「背後（時間落後或空間隱蔽）」，或在背後推動。',
+        'BEFORE': '處於權威或大眾的「正前方（立於眼前）」，或時間軸上的優先位置。'
       };
       return concepts[prep] || '空間方向延伸。';
     }
