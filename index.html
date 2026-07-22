@@ -135,8 +135,8 @@ const app = initializeApp(firebaseConfig);
     const expandedCards = new Set();
     let currentView = 'cards';
 
-    // 核心預設介系詞清單 (Y 軸)
-    const PREPOSITIONS = ['OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH'];
+    // 擴充核心介系詞清單 (Y 軸新增 FOR 與 ABOUT)
+    const PREPOSITIONS = ['FOR', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
 
     window.addEventListener('DOMContentLoaded', () => {
       const checkFirebase = setInterval(() => {
@@ -286,7 +286,6 @@ const app = initializeApp(firebaseConfig);
                 ✨ ${v.verb} ${prep}
               </td>`;
           } else {
-            // 空白格子顯示淡灰色 - 號，點擊依然可編輯！
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
                   class="p-2 border border-slate-200 text-center text-slate-300 hover:bg-slate-100 hover:text-slate-500 cursor-pointer transition">
@@ -330,7 +329,7 @@ const app = initializeApp(firebaseConfig);
           <form onsubmit="saveMatrixNote(event, '${item.id}', '${prep}')" class="pt-2 border-t border-slate-100 space-y-3">
             <div>
               <label class="block text-xs font-bold text-slate-600 mb-1">💡 這個片語的心智範例 / 筆記 (新增至卡片中)</label>
-              <textarea id="matrixNoteInput" rows="3" placeholder="輸入範例，例如：Take off the coat (伸手抓取並使其脫離身體 -> 脫大衣)" 
+              <textarea id="matrixNoteInput" rows="3" placeholder="輸入範例，例如：Look for keys (將視線聚光燈投射向目標方向 -> 找鑰匙)" 
                         class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
             </div>
 
@@ -342,7 +341,6 @@ const app = initializeApp(firebaseConfig);
         </div>
       `;
 
-      // 如果該範例已有相符內容，填入輸入框預覽
       if (item.examples) {
         const existingLines = item.examples.split('\n').filter(e => e.toLowerCase().includes(prep.toLowerCase()));
         if (existingLines.length > 0) {
@@ -360,15 +358,12 @@ const app = initializeApp(firebaseConfig);
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
-      // 1. 更新 Collocations 標籤，確保包含這個介系詞
       let collocationsArr = item.collocations ? item.collocations.split(',').map(c => c.trim()) : [];
       if (!collocationsArr.map(c => c.toUpperCase()).includes(prep.toUpperCase())) {
         collocationsArr.push(prep.toUpperCase());
       }
 
-      // 2. 更新 Examples 範例
       let examplesArr = item.examples ? item.examples.split('\n').filter(e => e.trim()) : [];
-      // 移除舊有關於這個介系詞的描述，換成新的
       examplesArr = examplesArr.filter(e => !e.toLowerCase().includes(prep.toLowerCase()));
       if (newNote) {
         examplesArr.push(newNote);
@@ -394,6 +389,7 @@ const app = initializeApp(firebaseConfig);
 
     function getPrepConcept(prep) {
       const concepts = {
+        'FOR': '視線、力量朝向特定的「目標標的」，或是作為等價的「對等交換/替代」。',
         'OFF': '脫離原本表面/軌道，切斷連結。',
         'ON': '附著於表面接觸，或沿著線路/時間持續推進。',
         'OUT': '從內部容器破框而出，或擴散到邊界盡頭（徹底化）。',
@@ -403,7 +399,8 @@ const app = initializeApp(firebaseConfig);
         'DOWN': '垂直向下沉降、強度減弱、或向下壓制固定。',
         'OVER': '弧形跨越障礙頂部、完全覆蓋、或翻轉倒下。',
         'AWAY': '朝向視線或焦點之外遠離，直到消失。',
-        'THROUGH': '從封閉空間或時間的這一端「貫穿透過去」到另一端。'
+        'THROUGH': '從封閉空間或時間的這一端「貫穿透過去」到另一端。',
+        'ABOUT': '圍繞著核心周圍分佈（大約/圍繞主題）。'
       };
       return concepts[prep] || '空間方向延伸。';
     }
