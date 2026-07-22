@@ -274,13 +274,14 @@ const app = initializeApp(firebaseConfig);
         html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
 
         sortedVerbs.forEach(v => {
-          const targetPhrase = `${v.verb} ${prep}`.toLowerCase();
-          
-          // 檢查 collocations 列表中是否有對應介系詞或片語
-          const colList = v.collocations ? v.collocations.toLowerCase().split(',').map(c => c.trim()) : [];
-          const hasMatch = colList.includes(prep.toLowerCase()) || colList.includes(targetPhrase);
+          const matrixNotes = v.matrixNotes || {};
+          const hasNote = matrixNotes[prep] && matrixNotes[prep].trim() !== '';
 
-          if (hasMatch) {
+          // 兼容舊資料的 collocations 檢查
+          const colList = v.collocations ? v.collocations.toLowerCase().split(',').map(c => c.trim()) : [];
+          const hasCol = colList.includes(prep.toLowerCase()) || colList.includes(`${v.verb} ${prep}`.toLowerCase());
+
+          if (hasNote || hasCol) {
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
                   class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/25 text-blue-700 font-bold text-center cursor-pointer transition">
@@ -309,14 +310,9 @@ const app = initializeApp(firebaseConfig);
       const content = document.getElementById('matrixDetailContent');
       const targetPhrase = `${item.verb} ${prep}`;
 
-      // 提取筆記：排除任何與網頁系統相關的字眼，專注取真實範例
-      let existingNotes = [];
-      if (item.examples) {
-        existingNotes = item.examples.split('\n')
-          .filter(line => line.trim() !== '')
-          .filter(line => !line.includes('tailwindcss.com'))
-          .filter(line => line.toLowerCase().includes(prep.toLowerCase()));
-      }
+      // 從獨立字典精準讀取筆記
+      const matrixNotes = item.matrixNotes || {};
+      let noteContent = matrixNotes[prep] || '';
 
       content.innerHTML = `
         <div class="text-center mb-4 border-b pb-3">
@@ -344,8 +340,8 @@ const app = initializeApp(firebaseConfig);
                 <span class="text-[10px] text-slate-400 font-normal">可拖曳右下角調整框框高度</span>
               </label>
               <textarea id="matrixNoteInput" rows="6" 
-                        placeholder="例如：&#10;Bring out a new product (把藏在內部的產品拉出來展現 -> 推出新品)" 
-                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y">${escapeHtml(existingNotes.join('\n'))}</textarea>
+                        placeholder="例如：&#10;Catch up with work (快速推進攔截，拉平工作進度 -> 趕上進度)" 
+                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y">${escapeHtml(noteContent)}</textarea>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
@@ -359,45 +355,37 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存矩陣中的片語筆記回 Firebase (核心徹底修復)
+    // 儲存矩陣中的片語筆記回 Firebase (全新獨立字典寫法)
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
-      // 1. 處理 Collocations：若有輸入筆記，確保該介系詞併入清單；若筆記被清空，則移除該介系詞
-      let collocationsSet = new Set(
+      let matrixNotes = item.matrixNotes || {};
+      if (newNote !== "") {
+        matrixNotes[prep] = newNote;
+      } else {
+        delete matrixNotes[prep];
+      }
+
+      // 同步更新 Collocations 確保相容性
+      let colSet = new Set(
         item.collocations ? item.collocations.split(',').map(c => c.trim().toUpperCase()).filter(c => c !== '') : []
       );
-
-      if (newNote !== "") {
-        collocationsSet.add(prep.toUpperCase());
-      } else {
-        collocationsSet.delete(prep.toUpperCase());
-      }
-
-      // 2. 處理 Examples：過濾掉該介系詞舊範例及系統警告，併入新輸入筆記
-      let cleanExamples = item.examples ? item.examples.split('\n')
-        .map(e => e.trim())
-        .filter(e => e !== '')
-        .filter(e => !e.includes('tailwindcss.com'))
-        .filter(e => !e.toLowerCase().includes(prep.toLowerCase())) : [];
-
-      if (newNote !== "") {
-        cleanExamples.push(newNote);
-      }
+      if (newNote !== "") colSet.add(prep.toUpperCase());
+      else colSet.delete(prep.toUpperCase());
 
       const updatedData = {
-        collocations: Array.from(collocationsSet).join(', '),
-        examples: cleanExamples.join('\n'),
+        matrixNotes: matrixNotes,
+        collocations: Array.from(colSet).join(', '),
         updatedAt: new Date().toISOString()
       };
 
       try {
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
-        alert("🎉 筆記儲存成功！");
+        alert("🎉 筆記已成功儲存至雲端！");
       } catch (err) {
         alert("儲存失敗，錯誤原因：" + err.message);
       }
