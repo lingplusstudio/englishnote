@@ -136,8 +136,7 @@ const app = initializeApp(firebaseConfig);
     let currentView = 'cards';
 
     // 擴充核心介系詞清單 (Y 軸新增 FOR 與 ABOUT)
-    const PREPOSITIONS = ['FOR', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
-
+   const PREPOSITIONS = ['FOR', 'BACK', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
     window.addEventListener('DOMContentLoaded', () => {
       const checkFirebase = setInterval(() => {
         if (window.verbsCol) {
