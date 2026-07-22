@@ -249,6 +249,29 @@ const app = initializeApp(firebaseConfig);
       }).join('');
     }
 
+    // 輔助函式：提取某個格子的筆記（同時相容舊版與新版資料結構）
+    function getCellNote(item, prep) {
+      if (!item) return '';
+      const targetPhrase = `${item.verb} ${prep}`.toLowerCase();
+
+      // 1. 優先取新版字典檔
+      if (item.matrixNotes && item.matrixNotes[prep] && item.matrixNotes[prep].trim() !== '') {
+        return item.matrixNotes[prep].trim();
+      }
+
+      // 2. 備用取舊版 examples 欄位（過濾系統雜訊）
+      if (item.examples) {
+        const lines = item.examples.split('\n')
+          .map(l => l.trim())
+          .filter(l => l !== '')
+          .filter(l => !l.includes('tailwindcss.com'))
+          .filter(l => l.toLowerCase().includes(prep.toLowerCase()) || l.toLowerCase().includes(targetPhrase));
+        if (lines.length > 0) return lines.join('\n');
+      }
+
+      return '';
+    }
+
     // 2. 渲染直角座標矩陣 (Matrix View)
     function renderMatrix(data) {
       const container = document.getElementById('matrixTableContainer');
@@ -274,14 +297,11 @@ const app = initializeApp(firebaseConfig);
         html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
 
         sortedVerbs.forEach(v => {
-          const matrixNotes = v.matrixNotes || {};
-          const hasNote = matrixNotes[prep] && matrixNotes[prep].trim() !== '';
-
-          // 兼容舊資料的 collocations 檢查
+          const noteContent = getCellNote(v, prep);
           const colList = v.collocations ? v.collocations.toLowerCase().split(',').map(c => c.trim()) : [];
-          const hasCol = colList.includes(prep.toLowerCase()) || colList.includes(`${v.verb} ${prep}`.toLowerCase());
+          const hasCollocation = colList.includes(prep.toLowerCase()) || colList.includes(`${v.verb} ${prep}`.toLowerCase());
 
-          if (hasNote || hasCol) {
+          if (noteContent !== '' || hasCollocation) {
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
                   class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/25 text-blue-700 font-bold text-center cursor-pointer transition">
@@ -309,10 +329,7 @@ const app = initializeApp(firebaseConfig);
 
       const content = document.getElementById('matrixDetailContent');
       const targetPhrase = `${item.verb} ${prep}`;
-
-      // 從獨立字典精準讀取筆記
-      const matrixNotes = item.matrixNotes || {};
-      let noteContent = matrixNotes[prep] || '';
+      const noteContent = getCellNote(item, prep);
 
       content.innerHTML = `
         <div class="text-center mb-4 border-b pb-3">
@@ -355,13 +372,14 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存矩陣中的片語筆記回 Firebase (全新獨立字典寫法)
+    // 儲存矩陣中的片語筆記回 Firebase (雙向同步，絕不清理舊資料)
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
+      // 1. 更新新版字典檔
       let matrixNotes = item.matrixNotes || {};
       if (newNote !== "") {
         matrixNotes[prep] = newNote;
@@ -369,23 +387,32 @@ const app = initializeApp(firebaseConfig);
         delete matrixNotes[prep];
       }
 
-      // 同步更新 Collocations 確保相容性
+      // 2. 更新 Collocations 清單
       let colSet = new Set(
         item.collocations ? item.collocations.split(',').map(c => c.trim().toUpperCase()).filter(c => c !== '') : []
       );
       if (newNote !== "") colSet.add(prep.toUpperCase());
       else colSet.delete(prep.toUpperCase());
 
+      // 3. 安全更新 Examples，追加新筆記同時保留原有其他內容
+      let existingExamplesList = item.examples ? item.examples.split('\n').map(l => l.trim()).filter(l => l !== '' && !l.includes('tailwindcss.com')) : [];
+      // 移除該介系詞舊有的行，避免重複
+      existingExamplesList = existingExamplesList.filter(l => !l.toLowerCase().includes(prep.toLowerCase()));
+      if (newNote !== "") {
+        existingExamplesList.push(newNote);
+      }
+
       const updatedData = {
         matrixNotes: matrixNotes,
         collocations: Array.from(colSet).join(', '),
+        examples: existingExamplesList.join('\n'),
         updatedAt: new Date().toISOString()
       };
 
       try {
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
-        alert("🎉 筆記已成功儲存至雲端！");
+        alert("🎉 筆記已成功永久儲存！");
       } catch (err) {
         alert("儲存失敗，錯誤原因：" + err.message);
       }
