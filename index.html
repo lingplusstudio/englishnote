@@ -75,7 +75,7 @@ const app = initializeApp(firebaseConfig);
     <!-- 2. 直角座標矩陣檢視 (Matrix View) -->
     <main id="matrixView" class="hidden bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-x-auto">
       <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
-        <span>💡 <b>矩陣使用說明：</b> 藍色格為<b>已建立片語</b>；灰色短槓 <b>-</b> 代表未建立，但<b>點擊一樣可以編輯新增</b>！</span>
+        <span>💡 <b>矩陣使用說明：</b> 藍色格為<b>已建立片語</b>；灰色短槓 <b>-</b> 代表未建立，點擊即可編輯筆記！</span>
       </div>
       <div id="matrixTableContainer"></div>
     </main>
@@ -276,10 +276,9 @@ const app = initializeApp(firebaseConfig);
         sortedVerbs.forEach(v => {
           const targetPhrase = `${v.verb} ${prep}`.toLowerCase();
           
-          // 增強比對邏輯：檢查 collocations 或 examples
-          const hasCollocation = v.collocations && v.collocations.toLowerCase().split(',').some(c => c.trim().toLowerCase() === prep.toLowerCase() || c.trim().toLowerCase() === targetPhrase);
-          const hasExample = v.examples && v.examples.toLowerCase().includes(targetPhrase);
-          const hasMatch = hasCollocation || hasExample;
+          // 檢查 collocations 列表中是否有對應介系詞或片語
+          const colList = v.collocations ? v.collocations.toLowerCase().split(',').map(c => c.trim()) : [];
+          const hasMatch = colList.includes(prep.toLowerCase()) || colList.includes(targetPhrase);
 
           if (hasMatch) {
             html += `
@@ -310,10 +309,13 @@ const app = initializeApp(firebaseConfig);
       const content = document.getElementById('matrixDetailContent');
       const targetPhrase = `${item.verb} ${prep}`;
 
-      // 提取目前對應此片語的範例筆記
+      // 提取筆記：排除任何與網頁系統相關的字眼，專注取真實範例
       let existingNotes = [];
       if (item.examples) {
-        existingNotes = item.examples.split('\n').filter(line => line.toLowerCase().includes(prep.toLowerCase()));
+        existingNotes = item.examples.split('\n')
+          .filter(line => line.trim() !== '')
+          .filter(line => !line.includes('tailwindcss.com'))
+          .filter(line => line.toLowerCase().includes(prep.toLowerCase()));
       }
 
       content.innerHTML = `
@@ -357,40 +359,47 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存矩陣中的片語筆記回 Firebase (核心修復)
+    // 儲存矩陣中的片語筆記回 Firebase (核心徹底修復)
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
-      // 1. 處理 Collocations：確保 prep 寫入清單
-      let collocationsArr = item.collocations ? item.collocations.split(',').map(c => c.trim()) : [];
-      const hasPrepInCol = collocationsArr.some(c => c.toUpperCase() === prep.toUpperCase() || c.toUpperCase() === `${item.verb} ${prep}`.toUpperCase());
-      
-      if (!hasPrepInCol && newNote !== "") {
-        collocationsArr.push(prep.toUpperCase());
+      // 1. 處理 Collocations：若有輸入筆記，確保該介系詞併入清單；若筆記被清空，則移除該介系詞
+      let collocationsSet = new Set(
+        item.collocations ? item.collocations.split(',').map(c => c.trim().toUpperCase()).filter(c => c !== '') : []
+      );
+
+      if (newNote !== "") {
+        collocationsSet.add(prep.toUpperCase());
+      } else {
+        collocationsSet.delete(prep.toUpperCase());
       }
 
-      // 2. 處理 Examples：保留非此介系詞的範例，併入新範例
-      let examplesArr = item.examples ? item.examples.split('\n').filter(e => e.trim()) : [];
-      examplesArr = examplesArr.filter(e => !e.toLowerCase().includes(prep.toLowerCase()));
-      
-      if (newNote) {
-        examplesArr.push(newNote);
+      // 2. 處理 Examples：過濾掉該介系詞舊範例及系統警告，併入新輸入筆記
+      let cleanExamples = item.examples ? item.examples.split('\n')
+        .map(e => e.trim())
+        .filter(e => e !== '')
+        .filter(e => !e.includes('tailwindcss.com'))
+        .filter(e => !e.toLowerCase().includes(prep.toLowerCase())) : [];
+
+      if (newNote !== "") {
+        cleanExamples.push(newNote);
       }
 
       const updatedData = {
-        collocations: collocationsArr.join(', '),
-        examples: examplesArr.join('\n'),
+        collocations: Array.from(collocationsSet).join(', '),
+        examples: cleanExamples.join('\n'),
         updatedAt: new Date().toISOString()
       };
 
       try {
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
+        alert("🎉 筆記儲存成功！");
       } catch (err) {
-        alert("儲存失敗，原因：" + err.message);
+        alert("儲存失敗，錯誤原因：" + err.message);
       }
     }
 
