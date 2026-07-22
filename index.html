@@ -249,27 +249,10 @@ const app = initializeApp(firebaseConfig);
       }).join('');
     }
 
-    // 輔助函式：提取某個格子的筆記（同時相容舊版與新版資料結構）
+    // 輔助函式：只精準讀取專屬矩陣筆記 matrixNotes[prep]
     function getCellNote(item, prep) {
-      if (!item) return '';
-      const targetPhrase = `${item.verb} ${prep}`.toLowerCase();
-
-      // 1. 優先取新版字典檔
-      if (item.matrixNotes && item.matrixNotes[prep] && item.matrixNotes[prep].trim() !== '') {
-        return item.matrixNotes[prep].trim();
-      }
-
-      // 2. 備用取舊版 examples 欄位（過濾系統雜訊）
-      if (item.examples) {
-        const lines = item.examples.split('\n')
-          .map(l => l.trim())
-          .filter(l => l !== '')
-          .filter(l => !l.includes('tailwindcss.com'))
-          .filter(l => l.toLowerCase().includes(prep.toLowerCase()) || l.toLowerCase().includes(targetPhrase));
-        if (lines.length > 0) return lines.join('\n');
-      }
-
-      return '';
+      if (!item || !item.matrixNotes) return '';
+      return item.matrixNotes[prep] ? item.matrixNotes[prep].trim() : '';
     }
 
     // 2. 渲染直角座標矩陣 (Matrix View)
@@ -298,10 +281,9 @@ const app = initializeApp(firebaseConfig);
 
         sortedVerbs.forEach(v => {
           const noteContent = getCellNote(v, prep);
-          const colList = v.collocations ? v.collocations.toLowerCase().split(',').map(c => c.trim()) : [];
-          const hasCollocation = colList.includes(prep.toLowerCase()) || colList.includes(`${v.verb} ${prep}`.toLowerCase());
 
-          if (noteContent !== '' || hasCollocation) {
+          // 只有當此格被親自輸入並儲存了筆記，才顯示藍色亮燈，否則一律空白短槓 (-)
+          if (noteContent !== '') {
             html += `
               <td onclick="openMatrixDetail('${v.id}', '${prep}')" 
                   class="p-2 border border-slate-200 bg-blue-500/10 hover:bg-blue-500/25 text-blue-700 font-bold text-center cursor-pointer transition">
@@ -354,10 +336,10 @@ const app = initializeApp(firebaseConfig);
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1.5 flex justify-between items-center">
                 <span>💡 心智範例與筆記 (每行一個範例)</span>
-                <span class="text-[10px] text-slate-400 font-normal">可拖曳右下角調整框框高度</span>
+                <span class="text-[10px] text-slate-400 font-normal">清空內容儲存即代表不建立這格</span>
               </label>
               <textarea id="matrixNoteInput" rows="6" 
-                        placeholder="例如：&#10;Catch up with work (快速推進攔截，拉平工作進度 -> 趕上進度)" 
+                        placeholder="例如：&#10;Bring to light (將隱藏的事物一路拉到光亮處落地 -> 揭露/使真相大白)" 
                         class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y">${escapeHtml(noteContent)}</textarea>
             </div>
 
@@ -372,14 +354,13 @@ const app = initializeApp(firebaseConfig);
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存矩陣中的片語筆記回 Firebase (雙向同步，絕不清理舊資料)
+    // 儲存機制（純粹更新 matrixNotes 字典）
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
-      // 1. 更新新版字典檔
       let matrixNotes = item.matrixNotes || {};
       if (newNote !== "") {
         matrixNotes[prep] = newNote;
@@ -387,32 +368,19 @@ const app = initializeApp(firebaseConfig);
         delete matrixNotes[prep];
       }
 
-      // 2. 更新 Collocations 清單
-      let colSet = new Set(
-        item.collocations ? item.collocations.split(',').map(c => c.trim().toUpperCase()).filter(c => c !== '') : []
-      );
-      if (newNote !== "") colSet.add(prep.toUpperCase());
-      else colSet.delete(prep.toUpperCase());
-
-      // 3. 安全更新 Examples，追加新筆記同時保留原有其他內容
-      let existingExamplesList = item.examples ? item.examples.split('\n').map(l => l.trim()).filter(l => l !== '' && !l.includes('tailwindcss.com')) : [];
-      // 移除該介系詞舊有的行，避免重複
-      existingExamplesList = existingExamplesList.filter(l => !l.toLowerCase().includes(prep.toLowerCase()));
-      if (newNote !== "") {
-        existingExamplesList.push(newNote);
-      }
-
       const updatedData = {
         matrixNotes: matrixNotes,
-        collocations: Array.from(colSet).join(', '),
-        examples: existingExamplesList.join('\n'),
         updatedAt: new Date().toISOString()
       };
 
       try {
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
-        alert("🎉 筆記已成功永久儲存！");
+        if (newNote === "") {
+          alert("🗑️ 該格子已清空重置！");
+        } else {
+          alert("🎉 筆記已成功儲存至雲端！");
+        }
       } catch (err) {
         alert("儲存失敗，錯誤原因：" + err.message);
       }
