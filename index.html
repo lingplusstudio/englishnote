@@ -122,9 +122,9 @@ const app = initializeApp(firebaseConfig);
     </div>
   </div>
 
-  <!-- Detail Popover & Edit Modal for Matrix (座標心智與編輯) -->
+  <!-- Detail Popover & Edit Modal for Matrix (加大版座標心智與編輯視窗) -->
   <div id="matrixDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="bg-white rounded-xl p-6 max-w-xl w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div id="matrixDetailContent"></div>
     </div>
   </div>
@@ -135,8 +135,9 @@ const app = initializeApp(firebaseConfig);
     const expandedCards = new Set();
     let currentView = 'cards';
 
-    // 擴充核心介系詞清單 (Y 軸新增 FOR 與 ABOUT)
-   const PREPOSITIONS = ['FOR', 'BACK', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
+    // 擴充核心介系詞清單 (包含 FOR, BACK 與 ABOUT)
+    const PREPOSITIONS = ['FOR', 'BACK', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
+
     window.addEventListener('DOMContentLoaded', () => {
       const checkFirebase = setInterval(() => {
         if (window.verbsCol) {
@@ -299,7 +300,7 @@ const app = initializeApp(firebaseConfig);
       container.innerHTML = html;
     }
 
-    // 點擊矩陣單元格：顯示與編輯
+    // 點擊矩陣單元格：顯示與編輯 (加大版視窗)
     function openMatrixDetail(verbId, prep) {
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
@@ -309,32 +310,38 @@ const app = initializeApp(firebaseConfig);
 
       content.innerHTML = `
         <div class="text-center mb-4 border-b pb-3">
-          <span class="text-xs uppercase font-bold text-slate-400">座標心智點</span>
+          <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">座標心智交會點</span>
           <h3 class="text-3xl font-black text-blue-600 mt-1">${escapeHtml(targetPhrase)}</h3>
         </div>
         
-        <div class="space-y-3 text-sm">
-          <div class="bg-blue-50 p-2.5 rounded border border-blue-100">
-            <span class="font-bold text-blue-600 text-xs">💥 動詞力量 (${item.verb})：</span>
-            <p class="text-slate-700 text-xs mt-0.5">${escapeHtml(item.coreImage)}</p>
+        <div class="space-y-4 text-sm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <span class="font-bold text-blue-700 text-xs flex items-center gap-1">💥 動詞力量 (${item.verb})</span>
+              <p class="text-slate-700 text-xs mt-1 leading-relaxed">${escapeHtml(item.coreImage)}</p>
+            </div>
+
+            <div class="bg-amber-50 p-3 rounded-lg border border-amber-100">
+              <span class="font-bold text-amber-800 text-xs flex items-center gap-1">🧭 空間方向 (${prep})</span>
+              <p class="text-slate-700 text-xs mt-1 leading-relaxed">${getPrepConcept(prep)}</p>
+            </div>
           </div>
 
-          <div class="bg-amber-50 p-2.5 rounded border border-amber-100">
-            <span class="font-bold text-amber-800 text-xs">🧭 空間方向 (${prep})：</span>
-            <p class="text-slate-700 text-xs mt-0.5">${getPrepConcept(prep)}</p>
-          </div>
-
-          <!-- 編輯表單 -->
+          <!-- 加大筆記編輯表單 -->
           <form onsubmit="saveMatrixNote(event, '${item.id}', '${prep}')" class="pt-2 border-t border-slate-100 space-y-3">
             <div>
-              <label class="block text-xs font-bold text-slate-600 mb-1">💡 這個片語的心智範例 / 筆記 (新增至卡片中)</label>
-              <textarea id="matrixNoteInput" rows="3" placeholder="輸入範例，例如：Look for keys (將視線聚光燈投射向目標方向 -> 找鑰匙)" 
-                        class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5 flex justify-between items-center">
+                <span>💡 心智範例與筆記 (每行一個範例)</span>
+                <span class="text-[10px] text-slate-400 font-normal">可拖曳右下角調整框框高度</span>
+              </label>
+              <textarea id="matrixNoteInput" rows="6" 
+                        placeholder="例如：&#10;Bring back memories (把過去的回憶順著時間軸拉回眼前 -> 勾起回憶)&#10;Bring back the book (把書帶回原處 -> 歸還)" 
+                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y"></textarea>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
-              <button type="button" onclick="closeMatrixDetail()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700">取消</button>
-              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-1.5 rounded text-xs shadow">儲存片語筆記</button>
+              <button type="button" onclick="closeMatrixDetail()" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition">取消</button>
+              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md transition">儲存片語筆記</button>
             </div>
           </form>
         </div>
@@ -389,6 +396,7 @@ const app = initializeApp(firebaseConfig);
     function getPrepConcept(prep) {
       const concepts = {
         'FOR': '視線、力量朝向特定的「目標標的」，或是作為等價的「對等交換/替代」。',
+        'BACK': '順著原路折返，朝向起點或過去的時間/位置。',
         'OFF': '脫離原本表面/軌道，切斷連結。',
         'ON': '附著於表面接觸，或沿著線路/時間持續推進。',
         'OUT': '從內部容器破框而出，或擴散到邊界盡頭（徹底化）。',
