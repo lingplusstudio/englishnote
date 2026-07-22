@@ -122,7 +122,7 @@ const app = initializeApp(firebaseConfig);
     </div>
   </div>
 
-  <!-- Detail Popover & Edit Modal for Matrix (加大版座標心智與編輯視窗) -->
+  <!-- Detail Popover & Edit Modal for Matrix -->
   <div id="matrixDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl p-6 max-w-xl w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div id="matrixDetailContent"></div>
@@ -135,7 +135,7 @@ const app = initializeApp(firebaseConfig);
     const expandedCards = new Set();
     let currentView = 'cards';
 
-    // 完整介系詞與空間副詞清單 (Y 軸：包含 FOR, AT, TO, OF, WITH, BACK 等)
+    // 介系詞與空間副詞清單 (Y 軸)
     const PREPOSITIONS = ['FOR', 'AT', 'TO', 'OF', 'WITH', 'BACK', 'OFF', 'ON', 'OUT', 'IN', 'INTO', 'UP', 'DOWN', 'OVER', 'AWAY', 'THROUGH', 'ABOUT'];
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -271,13 +271,15 @@ const app = initializeApp(firebaseConfig);
       // Matrix Body (Y 軸：介系詞)
       PREPOSITIONS.forEach(prep => {
         html += `<tr>`;
-        // Sticky Header Column (Y 軸標題)
         html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
 
         sortedVerbs.forEach(v => {
           const targetPhrase = `${v.verb} ${prep}`.toLowerCase();
-          const hasMatch = (v.collocations && v.collocations.toLowerCase().includes(prep.toLowerCase())) ||
-                           (v.examples && v.examples.toLowerCase().includes(targetPhrase));
+          
+          // 增強比對邏輯：檢查 collocations 或 examples
+          const hasCollocation = v.collocations && v.collocations.toLowerCase().split(',').some(c => c.trim().toLowerCase() === prep.toLowerCase() || c.trim().toLowerCase() === targetPhrase);
+          const hasExample = v.examples && v.examples.toLowerCase().includes(targetPhrase);
+          const hasMatch = hasCollocation || hasExample;
 
           if (hasMatch) {
             html += `
@@ -308,6 +310,12 @@ const app = initializeApp(firebaseConfig);
       const content = document.getElementById('matrixDetailContent');
       const targetPhrase = `${item.verb} ${prep}`;
 
+      // 提取目前對應此片語的範例筆記
+      let existingNotes = [];
+      if (item.examples) {
+        existingNotes = item.examples.split('\n').filter(line => line.toLowerCase().includes(prep.toLowerCase()));
+      }
+
       content.innerHTML = `
         <div class="text-center mb-4 border-b pb-3">
           <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">座標心智交會點</span>
@@ -327,7 +335,6 @@ const app = initializeApp(firebaseConfig);
             </div>
           </div>
 
-          <!-- 加大筆記編輯表單 -->
           <form onsubmit="saveMatrixNote(event, '${item.id}', '${prep}')" class="pt-2 border-t border-slate-100 space-y-3">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1.5 flex justify-between items-center">
@@ -335,8 +342,8 @@ const app = initializeApp(firebaseConfig);
                 <span class="text-[10px] text-slate-400 font-normal">可拖曳右下角調整框框高度</span>
               </label>
               <textarea id="matrixNoteInput" rows="6" 
-                        placeholder="例如：&#10;Catch up with a friend (快速推進與朋友相伴同行 -> 敘舊)" 
-                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y"></textarea>
+                        placeholder="例如：&#10;Bring out a new product (把藏在內部的產品拉出來展現 -> 推出新品)" 
+                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none leading-relaxed shadow-inner resize-y">${escapeHtml(existingNotes.join('\n'))}</textarea>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
@@ -347,30 +354,28 @@ const app = initializeApp(firebaseConfig);
         </div>
       `;
 
-      if (item.examples) {
-        const existingLines = item.examples.split('\n').filter(e => e.toLowerCase().includes(prep.toLowerCase()));
-        if (existingLines.length > 0) {
-          document.getElementById('matrixNoteInput').value = existingLines.join('\n');
-        }
-      }
-
       document.getElementById('matrixDetailModal').classList.remove('hidden');
     }
 
-    // 儲存矩陣中的片語筆記回 Firebase
+    // 儲存矩陣中的片語筆記回 Firebase (核心修復)
     async function saveMatrixNote(e, verbId, prep) {
       e.preventDefault();
       const newNote = document.getElementById('matrixNoteInput').value.trim();
       const item = verbsData.find(v => v.id === verbId);
       if (!item) return;
 
+      // 1. 處理 Collocations：確保 prep 寫入清單
       let collocationsArr = item.collocations ? item.collocations.split(',').map(c => c.trim()) : [];
-      if (!collocationsArr.map(c => c.toUpperCase()).includes(prep.toUpperCase())) {
+      const hasPrepInCol = collocationsArr.some(c => c.toUpperCase() === prep.toUpperCase() || c.toUpperCase() === `${item.verb} ${prep}`.toUpperCase());
+      
+      if (!hasPrepInCol && newNote !== "") {
         collocationsArr.push(prep.toUpperCase());
       }
 
+      // 2. 處理 Examples：保留非此介系詞的範例，併入新範例
       let examplesArr = item.examples ? item.examples.split('\n').filter(e => e.trim()) : [];
       examplesArr = examplesArr.filter(e => !e.toLowerCase().includes(prep.toLowerCase()));
+      
       if (newNote) {
         examplesArr.push(newNote);
       }
@@ -385,7 +390,7 @@ const app = initializeApp(firebaseConfig);
         await window.updateDoc(window.doc(window.db, "verbs", verbId), updatedData);
         closeMatrixDetail();
       } catch (err) {
-        alert("儲存片語筆記失敗: " + err.message);
+        alert("儲存失敗，原因：" + err.message);
       }
     }
 
