@@ -10,17 +10,17 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // 替換為你的 Firebase 專案設定
-    const firebaseConfig = {
-      apiKey: "AIzaSyC75QvUqKgPusS1z7uYOQrKg38VajDRc80",
-    authDomain: "englishnote-c2462.firebaseapp.com",
-    projectId: "englishnote-c2462",
-    storageBucket: "englishnote-c2462.firebasestorage.app",
-    messagingSenderId: "727644589126",
-    appId: "1:727644589126:web:5e5e1deed9ca691afa0e47",
-    measurementId: "G-BYHGCY6TXD"
-    };
-const app = initializeApp(firebaseConfig);
+    const firebaseConfig = {
+      apiKey: "AIzaSyC75QvUqKgPusS1z7uYOQrKg38VajDRc80",
+      authDomain: "englishnote-c2462.firebaseapp.com",
+      projectId: "englishnote-c2462",
+      storageBucket: "englishnote-c2462.firebasestorage.app",
+      messagingSenderId: "727644589126",
+      appId: "1:727644589126:web:5e5e1deed9ca691afa0e47",
+      measurementId: "G-BYHGCY6TXD"
+    };
+
+    const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const verbsCol = collection(db, "verbs");
 
@@ -33,6 +33,21 @@ const app = initializeApp(firebaseConfig);
     window.doc = doc;
     window.onSnapshot = onSnapshot;
   </script>
+
+  <style>
+    /* 視覺圖解專用 SVG 動畫 */
+    @keyframes fall-down {
+      0% { transform: translateY(-35px); opacity: 0; }
+      50% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(45px); opacity: 0; }
+    }
+    @keyframes rotate-around {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .anim-fall { animation: fall-down 2s infinite ease-in; }
+    .anim-orbit { transform-origin: 50px 50px; animation: rotate-around 6s linear infinite; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-6 font-sans">
 
@@ -46,13 +61,16 @@ const app = initializeApp(firebaseConfig);
       
       <!-- 檢視模式切換與功能鈕 -->
       <div class="flex flex-wrap gap-3 w-full md:w-auto items-center">
-        <!-- 視圖切換 Tab -->
+        <!-- 視圖切換 Tab (包含新加入的 3D 視覺子分頁) -->
         <div class="bg-slate-200 p-1 rounded-lg flex gap-1">
           <button id="tabCards" onclick="switchView('cards')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition">
             🎴 卡片牆
           </button>
           <button id="tabMatrix" onclick="switchView('matrix')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
             📐 座標矩陣 (2D Matrix)
+          </button>
+          <button id="tabSpatial" onclick="switchView('spatial')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
+            🧩 視覺心智圖解
           </button>
         </div>
 
@@ -79,6 +97,92 @@ const app = initializeApp(firebaseConfig);
       </div>
       <div id="matrixTableContainer"></div>
     </main>
+
+    <!-- 3. 視覺心智圖解子分頁 (Spatial Mental Cards) -->
+    <main id="spatialView" class="hidden">
+      <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-sm text-blue-800 flex items-center gap-2">
+        <span>🧭 <b>空間心智模式：</b> 建立直覺大腦的核心秘密！Y 軸動詞力量 ✖ X 軸空間幾何。</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Card 1: Get Out Of -->
+        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+          <div class="w-full h-40 bg-slate-900 rounded-lg flex justify-center items-center mb-4 overflow-hidden">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <!-- 容器/箱子 -->
+              <path d="M 20 35 L 20 80 L 65 80 L 65 55" fill="none" stroke="#64748b" stroke-width="3" />
+              <!-- 破框箭頭 -->
+              <path d="M 40 60 Q 55 55 75 25" fill="none" stroke="#fb7185" stroke-width="4" stroke-linecap="round" />
+              <polygon points="75,25 65,28 72,35" fill="#fb7185" />
+            </svg>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 mb-2">OUT OF (容器破框)</span>
+          <h3 class="text-lg font-black text-slate-800 mb-1">Get out of the car</h3>
+          <p class="text-xs text-slate-500 text-center leading-relaxed">屈身縮在小車/計程車等容器內部，將身體從狹窄空間<b>破框跨出來</b>。</p>
+        </div>
+
+        <!-- Card 2: Get Off -->
+        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+          <div class="w-full h-40 bg-slate-900 rounded-lg flex justify-center items-center mb-4 overflow-hidden">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <!-- 甲板/表面 -->
+              <line x1="15" y1="65" x2="85" y2="65" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+              <!-- 脫離箭頭 -->
+              <path d="M 35 60 Q 45 30 70 45" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" />
+              <polygon points="70,45 62,38 62,48" fill="#38bdf8" />
+            </svg>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 mb-2">OFF (表面脫離)</span>
+          <h3 class="text-lg font-black text-slate-800 mb-1">Get off the bus</h3>
+          <p class="text-xs text-slate-500 text-center leading-relaxed">站立在公車/飛機/火車等大型甲板表面上，向外踏步<b>脫離表面</b>。</p>
+        </div>
+
+        <!-- Card 3: Fall Through -->
+        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+          <div class="w-full h-40 bg-slate-900 rounded-lg flex justify-center items-center mb-4 opacity-95 relative overflow-hidden">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <!-- 破洞地基 -->
+              <line x1="10" y1="50" x2="38" y2="50" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+              <line x1="62" y1="50" x2="90" y2="50" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+              <!-- 破洞邊界 -->
+              <ellipse cx="50" cy="50" rx="12" ry="4" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="2 2" />
+              <!-- 重力貫穿下墜球體 -->
+              <g class="anim-fall">
+                <circle cx="50" cy="25" r="6" fill="#fbbf24" />
+              </g>
+            </svg>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100 mb-2">FALL ✖ THROUGH</span>
+          <h3 class="text-lg font-black text-slate-800 mb-1">Plan fell through</h3>
+          <p class="text-xs text-slate-500 text-center leading-relaxed"><b>FALL (重力向下 ⬇️)</b> 加乘 <b>THROUGH (貫穿破洞 🕳️)</b>：地基踩空陷落 ➔ 計畫泡湯。</p>
+        </div>
+
+        <!-- Card 4: About vs Around -->
+        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+          <div class="w-full h-40 bg-slate-900 rounded-lg flex justify-center items-center mb-4 overflow-hidden">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="6" fill="#4ade80" />
+              <!-- AROUND 旋轉軌道 -->
+              <g class="anim-orbit">
+                <circle cx="50" cy="50" r="28" fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="6 4" />
+                <polygon points="78,50 73,43 73,57" fill="#4ade80" />
+              </g>
+              <!-- ABOUT 點雲 -->
+              <circle cx="30" cy="30" r="2.5" fill="#94a3b8" />
+              <circle cx="70" cy="32" r="2.5" fill="#94a3b8" />
+              <circle cx="28" cy="68" r="2.5" fill="#94a3b8" />
+              <circle cx="65" cy="72" r="2.5" fill="#94a3b8" />
+            </svg>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 mb-2">ABOUT vs AROUND</span>
+          <h3 class="text-lg font-black text-slate-800 mb-1">Walk about / around</h3>
+          <p class="text-xs text-slate-500 text-center leading-relaxed"><b>AROUND</b> ＝ 順著圓形軌道繞圈 (⭕)；<br><b>ABOUT</b> ＝ 四周隨機散落漫遊 (░)。</p>
+        </div>
+
+      </div>
+    </main>
+
   </div>
 
   <!-- Add/Edit Modal (動詞卡片) -->
@@ -160,26 +264,41 @@ const app = initializeApp(firebaseConfig);
       currentView = view;
       const tabCards = document.getElementById('tabCards');
       const tabMatrix = document.getElementById('tabMatrix');
+      const tabSpatial = document.getElementById('tabSpatial');
+      
       const cardsView = document.getElementById('cardsView');
       const matrixView = document.getElementById('matrixView');
+      const spatialView = document.getElementById('spatialView');
+
+      // 重置所有按鈕的 CSS 樣式
+      const inactiveClass = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+      const activeClass = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
+
+      tabCards.className = inactiveClass;
+      tabMatrix.className = inactiveClass;
+      tabSpatial.className = inactiveClass;
+
+      cardsView.classList.add('hidden');
+      matrixView.classList.add('hidden');
+      spatialView.classList.add('hidden');
 
       if (view === 'cards') {
-        tabCards.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
-        tabMatrix.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        tabCards.className = activeClass;
         cardsView.classList.remove('hidden');
-        matrixView.classList.add('hidden');
-      } else {
-        tabMatrix.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
-        tabCards.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
+        renderCards(verbsData);
+      } else if (view === 'matrix') {
+        tabMatrix.className = activeClass;
         matrixView.classList.remove('hidden');
-        cardsView.classList.add('hidden');
         renderMatrix(verbsData);
+      } else if (view === 'spatial') {
+        tabSpatial.className = activeClass;
+        spatialView.classList.remove('hidden');
       }
     }
 
     function render() {
       if (currentView === 'cards') renderCards(verbsData);
-      else renderMatrix(verbsData);
+      else if (currentView === 'matrix') renderMatrix(verbsData);
     }
 
     function toggleExpand(id) {
@@ -435,7 +554,7 @@ const app = initializeApp(firebaseConfig);
         (v.collocations && v.collocations.toLowerCase().includes(query))
       );
       if (currentView === 'cards') renderCards(filtered);
-      else renderMatrix(filtered);
+      else if (currentView === 'matrix') renderMatrix(filtered);
     }
 
     function openModal() {
@@ -487,8 +606,7 @@ const app = initializeApp(firebaseConfig);
       };
 
       try {
-        if (editingId) {
-          await window.updateDoc(window.doc(window.db, "verbs", editingId), verbData);
+        if (editingId) {          await window.updateDoc(window.doc(window.db, "verbs", editingId), verbData);
         } else {
           verbData.createdAt = new Date().toISOString();
           await window.addDoc(window.verbsCol, verbData);
