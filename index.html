@@ -49,6 +49,9 @@
     .anim-pulse-dot { transform-origin: 50px 50px; animation: anim-pulse 2s infinite ease-in-out; }
     .anim-flow { animation: anim-slide-x 2.5s infinite linear; }
     .anim-collide { animation: anim-bounce-x 1.5s infinite ease-in-out; }
+
+    @keyframes anim-flash { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(59,130,246,0.35); } }
+    .anim-highlight-row { animation: anim-flash 1s ease-in-out 2; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-6 font-sans">
@@ -64,7 +67,7 @@
       <!-- 檢視模式切換與功能鈕 -->
       <div class="flex flex-wrap gap-3 w-full md:w-auto items-center">
         <!-- 視圖切換 Tab -->
-        <div class="bg-slate-200 p-1 rounded-lg flex gap-1">
+        <div class="bg-slate-200 p-1 rounded-lg flex gap-1 flex-wrap">
           <button id="tabCards" onclick="switchView('cards')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition">
             🎴 卡片牆
           </button>
@@ -73,6 +76,9 @@
           </button>
           <button id="tabSpatial" onclick="switchView('spatial')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
             🧩 25大介系詞圖解
+          </button>
+          <button id="tabQuiz" onclick="switchView('quiz')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">
+            🎯 測驗模式
           </button>
         </div>
 
@@ -94,9 +100,18 @@
 
     <!-- 2. 直角座標矩陣檢視 (Matrix View) -->
     <main id="matrixView" class="hidden bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-x-auto">
-      <div class="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center justify-between">
-        <span>💡 <b>矩陣使用說明：</b> 藍色格為<b>已建立片語</b>；灰色短槓 <b>-</b> 代表未建立，點擊即可編輯筆記！</span>
+      <div class="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+        <div class="text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex-1">
+          💡 <b>矩陣使用說明：</b> 藍色格為<b>已建立片語</b>；灰色短槓 <b>-</b> 代表未建立，點擊即可編輯筆記！點擊動詞欄名可比較同一動詞的所有片語。
+        </div>
+        <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-nowrap">
+          <label class="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
+            <input type="checkbox" id="onlyFilledToggle" onchange="renderMatrix(getFilteredData())" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            只顯示已填寫的格子
+          </label>
+        </div>
       </div>
+      <div id="matrixProgress" class="mb-4"></div>
       <div id="matrixTableContainer"></div>
     </main>
 
@@ -107,10 +122,10 @@
         <span class="text-xs font-bold bg-blue-200 text-blue-800 px-2.5 py-1 rounded-full">A-Z 全收錄</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="spatialGrid">
 
         <!-- 1. ABOUT -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('ABOUT')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             01. ABOUT
           </span>
@@ -130,7 +145,7 @@
         </div>
 
         <!-- 2. ACROSS -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('ACROSS')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             02. ACROSS
           </span>
@@ -149,7 +164,7 @@
         </div>
 
         <!-- 3. AGAINST -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('AGAINST')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             03. AGAINST
           </span>
@@ -167,7 +182,7 @@
         </div>
 
         <!-- 4. ALONG -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('ALONG')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-emerald-400 shadow mb-3 tracking-wider w-full text-center">
             04. ALONG
           </span>
@@ -182,7 +197,7 @@
         </div>
 
         <!-- 5. AROUND -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('AROUND')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-emerald-400 shadow mb-3 tracking-wider w-full text-center">
             05. AROUND
           </span>
@@ -200,7 +215,7 @@
         </div>
 
         <!-- 6. AT -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('AT')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             06. AT
           </span>
@@ -216,7 +231,7 @@
         </div>
 
         <!-- 7. AWAY -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('AWAY')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             07. AWAY
           </span>
@@ -234,7 +249,7 @@
         </div>
 
         <!-- 8. BACK -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('BACK')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-amber-400 shadow mb-3 tracking-wider w-full text-center">
             08. BACK
           </span>
@@ -249,7 +264,7 @@
         </div>
 
         <!-- 9. BEFORE -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('BEFORE')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             09. BEFORE
           </span>
@@ -265,7 +280,7 @@
         </div>
 
         <!-- 10. BEHIND -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('BEHIND')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-slate-400 shadow mb-3 tracking-wider w-full text-center">
             10. BEHIND
           </span>
@@ -281,7 +296,7 @@
         </div>
 
         <!-- 11. BY -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('BY')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             11. BY
           </span>
@@ -296,7 +311,7 @@
         </div>
 
         <!-- 12. DOWN -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('DOWN')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-amber-400 shadow mb-3 tracking-wider w-full text-center">
             12. DOWN
           </span>
@@ -314,7 +329,7 @@
         </div>
 
         <!-- 13. FOR -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('FOR')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             13. FOR
           </span>
@@ -330,7 +345,7 @@
         </div>
 
         <!-- 14. IN -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('IN')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             14. IN
           </span>
@@ -345,7 +360,7 @@
         </div>
 
         <!-- 15. INTO -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('INTO')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             15. INTO
           </span>
@@ -363,7 +378,7 @@
         </div>
 
         <!-- 16. OF -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('OF')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             16. OF
           </span>
@@ -378,7 +393,7 @@
         </div>
 
         <!-- 17. OFF -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('OFF')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             17. OFF
           </span>
@@ -394,7 +409,7 @@
         </div>
 
         <!-- 18. ON -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('ON')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-emerald-400 shadow mb-3 tracking-wider w-full text-center">
             18. ON
           </span>
@@ -409,7 +424,7 @@
         </div>
 
         <!-- 19. OUT -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('OUT')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             19. OUT
           </span>
@@ -425,7 +440,7 @@
         </div>
 
         <!-- 20. OVER -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('OVER')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             20. OVER
           </span>
@@ -441,7 +456,7 @@
         </div>
 
         <!-- 21. THROUGH -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('THROUGH')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-amber-400 shadow mb-3 tracking-wider w-full text-center">
             21. THROUGH
           </span>
@@ -459,7 +474,7 @@
         </div>
 
         <!-- 22. TO -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('TO')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             22. TO
           </span>
@@ -475,7 +490,7 @@
         </div>
 
         <!-- 23. UNDER -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('UNDER')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-rose-400 shadow mb-3 tracking-wider w-full text-center">
             23. UNDER
           </span>
@@ -490,7 +505,7 @@
         </div>
 
         <!-- 24. UP -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('UP')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-emerald-400 shadow mb-3 tracking-wider w-full text-center">
             24. UP
           </span>
@@ -508,7 +523,7 @@
         </div>
 
         <!-- 25. WITH -->
-        <div class="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
+        <div onclick="jumpToMatrixPrep('WITH')" class="cursor-pointer bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col items-center">
           <span class="text-lg font-black px-4 py-1.5 rounded-lg bg-slate-900 text-sky-400 shadow mb-3 tracking-wider w-full text-center">
             25. WITH
           </span>
@@ -522,6 +537,23 @@
           <p class="text-xs text-slate-500 text-center leading-relaxed">兩者處於同一空間緊密同行，或手中持拿工具。</p>
         </div>
 
+      </div>
+    </main>
+
+    <!-- 4. 測驗模式 (Quiz View) -->
+    <main id="quizView" class="hidden">
+      <div class="bg-white border border-slate-200 rounded-xl p-6 md:p-10 shadow-sm max-w-2xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <div class="flex gap-4 text-sm">
+            <span class="font-bold text-slate-700">已作答：<span id="quizTotal">0</span></span>
+            <span class="font-bold text-emerald-600">答對：<span id="quizCorrect">0</span></span>
+          </div>
+          <button onclick="resetQuiz()" class="text-xs text-slate-400 hover:text-blue-600 font-semibold">🔄 重設分數</button>
+        </div>
+
+        <div id="quizBody" class="text-center">
+          <!-- rendered by JS -->
+        </div>
       </div>
     </main>
 
@@ -575,11 +607,20 @@
     </div>
   </div>
 
+  <!-- Compare Modal (同一動詞不同介系詞比較) -->
+  <div id="compareModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl p-6 max-w-2xl w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div id="compareContent"></div>
+    </div>
+  </div>
+
   <!-- Application Logic -->
   <script>
     let verbsData = [];
     const expandedCards = new Set();
     let currentView = 'cards';
+    let quizState = { verbId: null, prep: null, revealed: false };
+    let quizScore = { total: 0, correct: 0 };
 
     // 介系詞與空間副詞清單 (Y 軸，已依 A-Z 順序排列)
     const PREPOSITIONS = [
@@ -607,10 +648,12 @@
       const tabCards = document.getElementById('tabCards');
       const tabMatrix = document.getElementById('tabMatrix');
       const tabSpatial = document.getElementById('tabSpatial');
+      const tabQuiz = document.getElementById('tabQuiz');
       
       const cardsView = document.getElementById('cardsView');
       const matrixView = document.getElementById('matrixView');
       const spatialView = document.getElementById('spatialView');
+      const quizView = document.getElementById('quizView');
 
       const inactiveClass = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition";
       const activeClass = "px-3 py-1.5 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm transition";
@@ -618,10 +661,12 @@
       tabCards.className = inactiveClass;
       tabMatrix.className = inactiveClass;
       tabSpatial.className = inactiveClass;
+      tabQuiz.className = inactiveClass;
 
       cardsView.classList.add('hidden');
       matrixView.classList.add('hidden');
       spatialView.classList.add('hidden');
+      quizView.classList.add('hidden');
 
       if (view === 'cards') {
         tabCards.className = activeClass;
@@ -630,16 +675,30 @@
       } else if (view === 'matrix') {
         tabMatrix.className = activeClass;
         matrixView.classList.remove('hidden');
-        renderMatrix(verbsData);
+        renderMatrix(getFilteredData());
       } else if (view === 'spatial') {
         tabSpatial.className = activeClass;
         spatialView.classList.remove('hidden');
+      } else if (view === 'quiz') {
+        tabQuiz.className = activeClass;
+        quizView.classList.remove('hidden');
+        nextQuizQuestion();
       }
     }
 
     function render() {
       if (currentView === 'cards') renderCards(verbsData);
-      else if (currentView === 'matrix') renderMatrix(verbsData);
+      else if (currentView === 'matrix') renderMatrix(getFilteredData());
+    }
+
+    function getFilteredData() {
+      const query = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+      if (!query) return verbsData;
+      return verbsData.filter(v => 
+        v.verb.toLowerCase().includes(query) || 
+        v.coreImage.toLowerCase().includes(query) ||
+        (v.collocations && v.collocations.toLowerCase().includes(query))
+      );
     }
 
     function toggleExpand(id) {
@@ -721,26 +780,60 @@
       return item.matrixNotes[prep] ? item.matrixNotes[prep].trim() : '';
     }
 
+    function countFilledCells(data) {
+      let filled = 0;
+      data.forEach(v => {
+        PREPOSITIONS.forEach(prep => {
+          if (getCellNote(v, prep) !== '') filled++;
+        });
+      });
+      return filled;
+    }
+
     // 2. 渲染直角座標矩陣 (Matrix View)
     function renderMatrix(data) {
       const container = document.getElementById('matrixTableContainer');
+      const progressContainer = document.getElementById('matrixProgress');
+      const onlyFilled = document.getElementById('onlyFilledToggle') ? document.getElementById('onlyFilledToggle').checked : false;
       const sortedVerbs = [...data].sort((a, b) => a.verb.localeCompare(b.verb));
 
       if (sortedVerbs.length === 0) {
         container.innerHTML = `<div class="text-center py-8 text-slate-400">尚無資料可建立矩陣。</div>`;
+        progressContainer.innerHTML = '';
         return;
       }
+
+      const totalCells = sortedVerbs.length * PREPOSITIONS.length;
+      const filledCells = countFilledCells(sortedVerbs);
+      const pct = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0;
+
+      progressContainer.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-500 rounded-full transition-all" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs font-bold text-slate-500 whitespace-nowrap">已建立 ${filledCells} / ${totalCells} 格 (${pct}%)</span>
+        </div>
+      `;
+
+      const visiblePreps = onlyFilled 
+        ? PREPOSITIONS.filter(prep => sortedVerbs.some(v => getCellNote(v, prep) !== ''))
+        : PREPOSITIONS;
 
       let html = `<table class="w-full border-collapse text-left text-xs">`;
       
       html += `<thead><tr><th class="p-2 border border-slate-200 bg-slate-100 text-slate-500 font-bold w-28 sticky left-0 z-10">介系詞 \\ 動詞</th>`;
       sortedVerbs.forEach(v => {
-        html += `<th class="p-2 border border-slate-200 bg-blue-50 text-blue-700 font-black text-center text-sm min-w-[95px]">${escapeHtml(v.verb)}</th>`;
+        html += `<th onclick="openCompareVerb('${v.id}')" class="p-2 border border-slate-200 bg-blue-50 hover:bg-blue-100 cursor-pointer text-blue-700 font-black text-center text-sm min-w-[95px]" title="點擊比較 ${escapeHtml(v.verb)} 的所有片語">${escapeHtml(v.verb)}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
-      PREPOSITIONS.forEach(prep => {
-        html += `<tr>`;
+      if (visiblePreps.length === 0) {
+        html += `<tr><td colspan="${sortedVerbs.length + 1}" class="p-6 text-center text-slate-400">此篩選條件下沒有已填寫的格子。</td></tr>`;
+      }
+
+      visiblePreps.forEach(prep => {
+        html += `<tr id="prep-row-${prep}">`;
         html += `<td class="p-2 border border-slate-200 bg-amber-50 text-amber-800 font-black text-sm sticky left-0 z-10 shadow-sm">${prep}</td>`;
 
         sortedVerbs.forEach(v => {
@@ -765,6 +858,25 @@
 
       html += `</tbody></table>`;
       container.innerHTML = html;
+    }
+
+    // 從 25 大介系詞圖解頁跳轉到矩陣中對應的列
+    function jumpToMatrixPrep(prep) {
+      // 若目前有「只顯示已填寫」篩選，先關掉，避免該列被隱藏
+      const toggle = document.getElementById('onlyFilledToggle');
+      if (toggle) toggle.checked = false;
+
+      switchView('matrix');
+
+      // 等待表格渲染完成後再捲動並高亮該列
+      setTimeout(() => {
+        const row = document.getElementById(`prep-row-${prep}`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          row.classList.add('anim-highlight-row');
+          setTimeout(() => row.classList.remove('anim-highlight-row'), 2200);
+        }
+      }, 60);
     }
 
     function openMatrixDetail(verbId, prep) {
@@ -851,6 +963,55 @@
       document.getElementById('matrixDetailModal').classList.add('hidden');
     }
 
+    // 同一動詞、不同介系詞的比較面板（易混淆片語比較）
+    function openCompareVerb(verbId) {
+      const item = verbsData.find(v => v.id === verbId);
+      if (!item) return;
+
+      const filledPreps = PREPOSITIONS.filter(prep => getCellNote(item, prep) !== '');
+      const content = document.getElementById('compareContent');
+
+      if (filledPreps.length === 0) {
+        content.innerHTML = `
+          <div class="text-center mb-4 border-b pb-3">
+            <h3 class="text-2xl font-black text-blue-600">${escapeHtml(item.verb)}</h3>
+          </div>
+          <p class="text-sm text-slate-400 text-center py-8">這個動詞目前還沒有在矩陣中建立任何片語筆記，點擊矩陣中的格子開始新增吧！</p>
+          <div class="flex justify-end pt-2">
+            <button onclick="closeCompareModal()" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition">關閉</button>
+          </div>
+        `;
+      } else {
+        content.innerHTML = `
+          <div class="text-center mb-4 border-b pb-3">
+            <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">易混淆片語比較</span>
+            <h3 class="text-3xl font-black text-blue-600 mt-1">${escapeHtml(item.verb)} + ?</h3>
+            <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.coreImage)}</p>
+          </div>
+          <div class="space-y-3">
+            ${filledPreps.map(prep => `
+              <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 hover:border-blue-300 transition cursor-pointer" onclick="closeCompareModal(); openMatrixDetail('${item.id}', '${prep}')">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded">${prep}</span>
+                  <span class="text-sm font-bold text-slate-800">${escapeHtml(item.verb)} ${prep}</span>
+                </div>
+                <p class="text-xs text-slate-600 leading-relaxed">${escapeHtml(getCellNote(item, prep).split('\n')[0])}</p>
+              </div>
+            `).join('')}
+          </div>
+          <div class="flex justify-end pt-4">
+            <button onclick="closeCompareModal()" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition">關閉</button>
+          </div>
+        `;
+      }
+
+      document.getElementById('compareModal').classList.remove('hidden');
+    }
+
+    function closeCompareModal() {
+      document.getElementById('compareModal').classList.add('hidden');
+    }
+
     function getPrepConcept(prep) {
       const concepts = {
         'ABOUT': '圍繞著核心周圍分佈（大約/圍繞主題）。',
@@ -883,14 +1044,101 @@
     }
 
     function filterCards() {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = verbsData.filter(v => 
-        v.verb.toLowerCase().includes(query) || 
-        v.coreImage.toLowerCase().includes(query) ||
-        (v.collocations && v.collocations.toLowerCase().includes(query))
-      );
+      const filtered = getFilteredData();
       if (currentView === 'cards') renderCards(filtered);
       else if (currentView === 'matrix') renderMatrix(filtered);
+    }
+
+    // 3. 測驗模式 (Quiz View)
+    function getAllFilledEntries() {
+      const entries = [];
+      verbsData.forEach(v => {
+        PREPOSITIONS.forEach(prep => {
+          const note = getCellNote(v, prep);
+          if (note !== '') entries.push({ verbId: v.id, verb: v.verb, coreImage: v.coreImage, prep, note });
+        });
+      });
+      return entries;
+    }
+
+    function nextQuizQuestion() {
+      const entries = getAllFilledEntries();
+      const body = document.getElementById('quizBody');
+      updateQuizScoreDisplay();
+
+      if (entries.length === 0) {
+        body.innerHTML = `
+          <div class="py-10">
+            <p class="text-slate-400 text-sm mb-2">矩陣裡還沒有任何片語筆記，先去「座標矩陣」建立幾個片語，測驗模式才有題目可以出喔！</p>
+            <button onclick="switchView('matrix')" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">前往建立筆記</button>
+          </div>
+        `;
+        return;
+      }
+
+      const pick = entries[Math.floor(Math.random() * entries.length)];
+      quizState = { verbId: pick.verbId, prep: pick.prep, revealed: false };
+
+      body.innerHTML = `
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">這個片語的核心圖像是什麼意思？</p>
+        <h2 class="text-4xl font-black text-slate-800 mb-8 tracking-wide">${escapeHtml(pick.verb)} <span class="text-blue-500">${escapeHtml(pick.prep)}</span></h2>
+
+        <div id="quizAnswerArea"></div>
+
+        <div class="mt-6">
+          <button onclick="revealQuizAnswer()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow">💭 顯示答案</button>
+        </div>
+      `;
+    }
+
+    function revealQuizAnswer() {
+      const item = verbsData.find(v => v.id === quizState.verbId);
+      if (!item) return;
+      const note = getCellNote(item, quizState.prep);
+
+      document.getElementById('quizAnswerArea').innerHTML = `
+        <div class="text-left space-y-3">
+          <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <span class="text-[10px] uppercase font-bold text-blue-600 block mb-0.5">🧠 動詞核心圖像</span>
+            <p class="text-slate-700 text-sm">${escapeHtml(item.coreImage)}</p>
+          </div>
+          <div class="bg-amber-50 p-3 rounded-lg border border-amber-100">
+            <span class="text-[10px] uppercase font-bold text-amber-700 block mb-0.5">🧭 空間方向 (${quizState.prep})</span>
+            <p class="text-slate-700 text-sm">${getPrepConcept(quizState.prep)}</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">💡 筆記 / 範例</span>
+            <ul class="list-disc list-inside text-xs text-slate-600 space-y-1">
+              ${note.split('\n').filter(l => l.trim()).map(l => `<li>${escapeHtml(l)}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+
+      document.querySelector('#quizBody > div.mt-6').innerHTML = `
+        <p class="text-xs text-slate-500 mb-3">自己評估一下，你剛剛的理解方向對嗎？</p>
+        <div class="flex justify-center gap-3">
+          <button onclick="answerQuiz(true)" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-lg text-sm shadow">✅ 我答對了</button>
+          <button onclick="answerQuiz(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-5 py-2 rounded-lg text-sm shadow">❌ 我答錯了</button>
+        </div>
+      `;
+    }
+
+    function answerQuiz(correct) {
+      quizScore.total += 1;
+      if (correct) quizScore.correct += 1;
+      updateQuizScoreDisplay();
+      nextQuizQuestion();
+    }
+
+    function updateQuizScoreDisplay() {
+      document.getElementById('quizTotal').innerText = quizScore.total;
+      document.getElementById('quizCorrect').innerText = quizScore.correct;
+    }
+
+    function resetQuiz() {
+      quizScore = { total: 0, correct: 0 };
+      updateQuizScoreDisplay();
     }
 
     function openModal() {
